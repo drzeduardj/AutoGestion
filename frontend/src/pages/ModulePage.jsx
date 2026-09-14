@@ -1,4 +1,4 @@
-import { Info, Pencil, Plus, Power, Search } from 'lucide-react';
+import { Info, PackagePlus, Pencil, Plus, Power, Search } from 'lucide-react';
 import { getListForModule, hasRole, moduleConfig } from '../config/moduleConfig';
 import { moduleHints, moduleTitles } from '../routes/modules';
 import { filterRows } from '../utils/formatters';
@@ -17,6 +17,7 @@ function ModulePage({
   onCreate,
   onEdit,
   onToggleStatus,
+  onStockMovement,
   onRefresh
 }) {
   const config = moduleConfig[moduleKey];
@@ -24,6 +25,7 @@ function ModulePage({
   const canCreate = hasRole(session, config?.createRoles);
   const canEdit = hasRole(session, config?.editRoles);
   const canStatus = hasRole(session, config?.statusRoles);
+  const canStock = Boolean(config?.stockMovements) && hasRole(session, config?.stockRoles);
 
   return (
     <section className="panel">
@@ -58,11 +60,16 @@ function ModulePage({
         <DataTable
           rows={rows}
           columns={config?.columns || []}
-          actions={canEdit || canStatus ? (row) => (
+          actions={canEdit || canStatus || canStock ? (row) => (
             <div className="row-actions">
               {canEdit ? (
                 <button className="icon-button table-action" type="button" onClick={() => onEdit(moduleKey, row)} aria-label="Editar" title="Editar">
                   <Pencil size={17} aria-hidden="true" />
+                </button>
+              ) : null}
+              {canStock ? (
+                <button className="icon-button table-action" type="button" onClick={() => onStockMovement(row)} aria-label="Entrada / ajuste de stock" title="Entrada / ajuste de stock">
+                  <PackagePlus size={17} aria-hidden="true" />
                 </button>
               ) : null}
               {canStatus && row.estado ? (

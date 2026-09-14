@@ -94,6 +94,7 @@ export const getModuleData = (moduleKey, token) => {
     recepcion: '/visitas/activas',
     servicios: '/servicios',
     inventario: '/productos',
+    facturacion: '/productos',
     reportes: '/visitas',
     mecanico: '/mecanico/mis-trabajos'
   };

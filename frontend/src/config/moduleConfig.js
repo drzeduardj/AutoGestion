@@ -144,6 +144,8 @@ export const moduleConfig = {
     createRoles: ['Admin'],
     editRoles: ['Admin'],
     statusRoles: ['Admin'],
+    stockMovements: true,
+    stockRoles: ['Admin', 'Cajero'],
     columns: [
       ['codigo', 'Codigo'],
       ['nombre', 'Producto'],

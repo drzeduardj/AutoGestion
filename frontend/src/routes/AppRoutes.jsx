@@ -1,4 +1,5 @@
 import DashboardPage from '../pages/DashboardPage';
+import FacturacionPage from '../pages/FacturacionPage';
 import MecanicoPage from '../pages/MecanicoPage';
 import ModulePage from '../pages/ModulePage';
 import RecepcionPage from '../pages/RecepcionPage';
@@ -11,6 +12,10 @@ function AppRoutes({ activeModule, ...props }) {
 
   if (activeModule === 'mecanico') {
     return <MecanicoPage {...props} />;
+  }
+
+  if (activeModule === 'facturacion') {
+    return <FacturacionPage {...props} />;
   }
 
   if (activeModule === 'reportes') {

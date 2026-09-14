@@ -5,6 +5,8 @@ export const TALLER_NOMBRE = 'Miguel Expert Collision';
 
 function FacturaDocument({ factura, visita }) {
   const lineas = factura.lineas || [];
+  const clienteNombre = visita?.cliente_nombre || factura.cliente_nombre || 'Sin dato';
+  const vehiculoTexto = visita ? vehicleLabel(visita) : (factura.tipo === 'Venta' ? 'Venta directa' : 'Sin dato');
 
   return (
     <article className="factura-doc">
@@ -24,8 +26,8 @@ function FacturaDocument({ factura, visita }) {
       </header>
 
       <div className="factura-doc-info">
-        <div><span>Cliente</span><strong>{visita?.cliente_nombre || 'Sin dato'}</strong></div>
-        <div><span>Vehiculo</span><strong>{visita ? vehicleLabel(visita) : 'Sin dato'}</strong></div>
+        <div><span>Cliente</span><strong>{clienteNombre}</strong></div>
+        <div><span>Vehiculo</span><strong>{vehiculoTexto}</strong></div>
         <div><span>Emitida por</span><strong>{factura.emitida_por_nombre || 'Sin dato'}</strong></div>
       </div>
 

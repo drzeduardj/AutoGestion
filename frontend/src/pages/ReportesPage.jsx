@@ -5,20 +5,18 @@ import EmptyState from '../components/ui/EmptyState';
 import ErrorState from '../components/ui/ErrorState';
 import SearchSelect from '../components/ui/SearchSelect';
 import FacturaDocument from '../components/ui/FacturaDocument';
+import CotizacionBuilder from '../components/forms/CotizacionBuilder';
 import { formatCurrency, formatDate, optionLabel, vehicleLabel } from '../utils/formatters';
 import logo from '../assets/logo.svg';
 
 const TALLER_NOMBRE = 'Miguel Expert Collision';
 
-const visitDocuments = [
-  { key: 'orden', label: 'Orden de trabajo' },
-  { key: 'cotizacion', label: 'Cotizacion' },
-  { key: 'recibo', label: 'Recibo/factura simple' },
-  { key: 'diagnostico', label: 'Reporte de diagnostico' }
-];
-
 const documentOptions = [
-  ...visitDocuments,
+  { key: 'orden', label: 'Orden de trabajo' },
+  { key: 'cotizacion', label: 'Cotizacion detallada' },
+  { key: 'cotizacion_simple', label: 'Cotizacion simple' },
+  { key: 'recibo', label: 'Recibo/factura simple' },
+  { key: 'diagnostico', label: 'Reporte de diagnostico' },
   { key: 'historial', label: 'Historial del vehiculo' },
   { key: 'factura', label: 'Factura emitida' }
 ];
@@ -42,6 +40,8 @@ function ReportesPage({ session, data, loading, error, onRefresh, onRequestError
   const [reportError, setReportError] = useState('');
   const isVehicleHistory = documentType === 'historial';
   const isFactura = documentType === 'factura';
+  const isCotizacionSimple = documentType === 'cotizacion_simple';
+  const isCotizacion = documentType === 'cotizacion' || isCotizacionSimple;
   const selectedVisita = useMemo(() => (
     visitas.find((visita) => String(visita.id) === String(selectedVisitaId))
   ), [selectedVisitaId, visitas]);
@@ -167,7 +167,15 @@ function ReportesPage({ session, data, loading, error, onRefresh, onRequestError
             </select>
           </label>
 
-          {isFactura ? (
+          {isCotizacion ? (
+            <p className="module-hint" style={{ margin: 0 }}>
+              {isCotizacionSimple
+                ? 'Cotizacion simple: un renglon por concepto (Repuestos, Mano de obra, Pintura...) con su total.'
+                : 'Cotizacion detallada: agrega lineas manuales o desde inventario/servicios.'}
+            </p>
+          ) : null}
+
+          {isCotizacion ? null : isFactura ? (
             <label className="field">
               Factura
               <SearchSelect
@@ -221,20 +229,22 @@ function ReportesPage({ session, data, loading, error, onRefresh, onRequestError
             </label>
           )}
 
-          <div className="report-actions">
-            <button className="secondary-button" type="button" onClick={onRefresh}>
-              <RefreshCcw size={17} aria-hidden="true" />
-              Actualizar
-            </button>
-            <button className="primary-button" type="button" onClick={generateReport} disabled={reportLoading || vehiculosLoading}>
-              <FileDown size={17} aria-hidden="true" />
-              {reportLoading ? 'Generando...' : 'Generar'}
-            </button>
-            <button className="secondary-button" type="button" onClick={printReport} disabled={!reportData}>
-              <Printer size={17} aria-hidden="true" />
-              Imprimir
-            </button>
-          </div>
+          {!isCotizacion ? (
+            <div className="report-actions">
+              <button className="secondary-button" type="button" onClick={onRefresh}>
+                <RefreshCcw size={17} aria-hidden="true" />
+                Actualizar
+              </button>
+              <button className="primary-button" type="button" onClick={generateReport} disabled={reportLoading || vehiculosLoading}>
+                <FileDown size={17} aria-hidden="true" />
+                {reportLoading ? 'Generando...' : 'Generar'}
+              </button>
+              <button className="secondary-button" type="button" onClick={printReport} disabled={!reportData}>
+                <Printer size={17} aria-hidden="true" />
+                Imprimir
+              </button>
+            </div>
+          ) : null}
         </div>
 
         {vehiculosError ? <div className="form-error full-row">{vehiculosError}</div> : null}
@@ -242,6 +252,15 @@ function ReportesPage({ session, data, loading, error, onRefresh, onRequestError
       </section>
 
       <section className="panel report-preview">
+        {isCotizacion ? (
+          <CotizacionBuilder
+            key={documentType}
+            simple={isCotizacionSimple}
+            token={session.token}
+            onRequestError={onRequestError}
+          />
+        ) : (
+          <>
         {reportLoading ? <EmptyState text="Generando documento..." /> : null}
         {!reportLoading && !reportData ? (
           <EmptyState text="Selecciona un documento y genera la vista previa" />
@@ -266,6 +285,8 @@ function ReportesPage({ session, data, loading, error, onRefresh, onRequestError
             />
           )
         ) : null}
+          </>
+        )}
       </section>
     </div>
   );

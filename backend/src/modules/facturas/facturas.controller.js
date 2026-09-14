@@ -101,6 +101,39 @@ const emitir = async (req, res) => {
   return successResponse(res, 'Factura emitida correctamente', { factura }, 201);
 };
 
+const emitirVenta = async (req, res) => {
+  const lineas = Array.isArray(req.body.lineas) ? req.body.lineas : [];
+  const lineasValidas = lineas
+    .map((linea) => ({
+      tipo: linea.tipo === 'Material' ? 'Material' : 'Servicio',
+      descripcion: normalizeNullableString(linea.descripcion),
+      cantidad: Number(linea.cantidad),
+      precio_unitario: Number(linea.precio_unitario),
+      producto_id: linea.producto_id ? Number(linea.producto_id) : null
+    }))
+    .filter((linea) => linea.descripcion && Number.isFinite(linea.cantidad) && linea.cantidad > 0 && Number.isFinite(linea.precio_unitario) && linea.precio_unitario >= 0);
+
+  if (!lineasValidas.length) {
+    return errorResponse(res, 'Agrega al menos una linea valida para emitir la factura', undefined, 400);
+  }
+
+  try {
+    const factura = await facturasModel.createVenta({
+      clienteNombre: normalizeNullableString(req.body.cliente_nombre),
+      lineas: lineasValidas,
+      observaciones: normalizeNullableString(req.body.observaciones),
+      emitidaPor: req.user.id
+    });
+
+    return successResponse(res, 'Factura de venta emitida correctamente', { factura }, 201);
+  } catch (error) {
+    if (error.message?.includes('Stock insuficiente')) {
+      return errorResponse(res, error.message, undefined, 400);
+    }
+    throw error;
+  }
+};
+
 const getFactura = async (req, res) => {
   const factura = await facturasModel.findById(Number(req.params.id));
 
@@ -117,5 +150,6 @@ module.exports = {
   listFacturas,
   getResumen,
   emitir,
+  emitirVenta,
   getFactura
 };

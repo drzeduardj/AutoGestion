@@ -6,6 +6,7 @@ import {
   ClipboardList,
   FileText,
   LayoutDashboard,
+  Receipt,
   Users,
   UserRoundCog,
   Wrench
@@ -20,6 +21,7 @@ export const modules = [
   { key: 'recepcion', label: 'Recepcion', icon: ClipboardCheck, roles: ['Admin', 'Cajero'] },
   { key: 'servicios', label: 'Servicios', icon: BriefcaseBusiness, roles: ['Admin', 'Cajero'] },
   { key: 'inventario', label: 'Inventario', icon: Boxes, roles: ['Admin', 'Cajero', 'Mecanico'] },
+  { key: 'facturacion', label: 'Facturacion', icon: Receipt, roles: ['Admin', 'Cajero'] },
   { key: 'reportes', label: 'Reportes', icon: FileText, roles: ['Admin', 'Cajero'] },
   { key: 'mecanico', label: 'Panel mecanico', icon: Wrench, roles: ['Mecanico'] }
 ];

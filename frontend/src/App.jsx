@@ -7,6 +7,7 @@ import ConfirmModal from './components/forms/ConfirmModal';
 import CrudModal from './components/forms/CrudModal';
 import VehiculoModal from './components/forms/VehiculoModal';
 import StatusModal from './components/forms/StatusModal';
+import StockMovementModal from './components/forms/StockMovementModal';
 import Sidebar from './components/layout/Sidebar';
 import NotificationCenter from './components/ui/NotificationCenter';
 import Toast from './components/ui/Toast';
@@ -46,6 +47,7 @@ function App() {
   const [reloadKey, setReloadKey] = useState(0);
   const [modal, setModal] = useState(null);
   const [statusModal, setStatusModal] = useState(null);
+  const [stockModal, setStockModal] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
   const [toast, setToast] = useState(null);
   const [authNotice, setAuthNotice] = useState('');
@@ -273,6 +275,14 @@ function App() {
     setModal({ mode: 'edit', moduleKey, row });
   };
 
+  const openStockMovement = (row) => {
+    if (!hasRole(session, moduleConfig.inventario?.stockRoles)) {
+      showToast('No tienes permiso para mover el stock', 'danger');
+      return;
+    }
+    setStockModal(row);
+  };
+
   const submitCrud = async (payload) => {
     if (!modal) return;
 
@@ -462,6 +472,7 @@ function App() {
           onCreate={openCreate}
           onEdit={openEdit}
           onToggleStatus={toggleStatus}
+          onStockMovement={openStockMovement}
           onRefresh={refresh}
           showToast={showToast}
           onRequestError={handleRequestError}
@@ -496,6 +507,16 @@ function App() {
           onChange={setStatusModal}
           onClose={() => setStatusModal(null)}
           onSubmit={submitStatus}
+        />
+      ) : null}
+      {stockModal ? (
+        <StockMovementModal
+          producto={stockModal}
+          token={session.token}
+          onClose={() => setStockModal(null)}
+          onSaved={refresh}
+          showToast={showToast}
+          onRequestError={handleRequestError}
         />
       ) : null}
       <ConfirmModal
