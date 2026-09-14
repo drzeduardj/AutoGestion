@@ -117,3 +117,29 @@ frontend/src/pages       Pantallas principales
 frontend/src/routes      Definicion de modulos/rutas internas
 frontend/src/utils       Helpers de sesion y formato
 ```
+
+## Despliegue en Vercel
+
+El repositorio esta listo para desplegarse completo en un solo proyecto de Vercel:
+
+- `frontend/dist` se publica como sitio estatico (SPA).
+- La API Express corre como Serverless Function desde `api/index.js` y responde en `/api/*`.
+- La configuracion esta en `vercel.json` (instala `backend` y `frontend`, compila el frontend).
+
+Pasos:
+
+1. Importa el repositorio en Vercel con **Root Directory = raiz del repo** (Framework Preset: *Other*).
+2. Crea una base PostgreSQL externa (Neon, Supabase o Vercel Postgres desde el Marketplace).
+3. En *Storage* conecta un **Blob store** al proyecto (agrega `BLOB_READ_WRITE_TOKEN` automaticamente). Sin esto las fotos no se pueden guardar, porque Vercel no tiene disco persistente.
+4. Variables de entorno del proyecto:
+   - `DATABASE_URL` (cadena de conexion con `sslmode=require`)
+   - `JWT_SECRET`, `JWT_EXPIRES_IN`
+   - `CORS_ORIGIN` (opcional; el frontend y la API comparten dominio)
+5. Aplica las migraciones contra la base remota desde tu equipo:
+
+```powershell
+cd backend
+$env:DATABASE_URL="postgresql://..."; $env:DB_SSL="true"; npm run migrate
+```
+
+Limites a tener en cuenta: las peticiones tienen un maximo de 4.5 MB (las fotos se limitan a 4 MB) y cada peticion a la API puede durar hasta 30 s.

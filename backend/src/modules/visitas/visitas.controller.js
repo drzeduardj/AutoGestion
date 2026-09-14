@@ -431,7 +431,7 @@ const addFoto = async (req, res) => {
 
   const foto = await visitasModel.addFoto(visitaId, {
     tipo: req.body.tipo || 'Visita',
-    url_archivo: `/uploads/visitas/${req.file.filename}`,
+    url_archivo: req.file.url,
     nombre_archivo: req.file.originalname,
     descripcion: normalizeNullableString(req.body.descripcion),
     subido_por: req.user.id
