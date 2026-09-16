@@ -203,7 +203,13 @@ const createVisita = async (req, res) => {
 };
 
 const updateVisita = async (req, res) => {
+  const visitaId = Number(req.params.id);
   const payload = buildVisitaPayload(req.body, req.user, true);
+  const visitaActual = await visitasModel.findById(visitaId);
+
+  if (!visitaActual) {
+    return errorResponse(res, 'Visita no encontrada', undefined, 404);
+  }
 
   if (payload.mecanico_asignado_id) {
     const mecanicoExists = await visitasModel.usuarioActivo(payload.mecanico_asignado_id, 'Mecanico');
@@ -221,19 +227,26 @@ const updateVisita = async (req, res) => {
     }
   }
 
-  const visita = await visitasModel.update(Number(req.params.id), payload);
+  const visita = await visitasModel.update(visitaId, payload);
 
   if (!visita) {
     return errorResponse(res, 'Visita no encontrada', undefined, 404);
   }
 
+  // El formulario de edicion siempre reenvia flujo_trabajo_id: solo se reinician las
+  // etapas si el flujo cambio; si es el mismo, se conserva el avance registrado.
   if (payload.flujo_trabajo_id) {
-    await flujosModel.inicializarEtapasVisita({
-      visitaId: visita.id,
-      flujoTrabajoId: payload.flujo_trabajo_id,
-      usuarioId: req.user?.id,
-      replace: true
-    });
+    const flujoCambio = Number(payload.flujo_trabajo_id) !== Number(visitaActual.flujo_trabajo_id);
+    const sinEtapas = !flujoCambio && !(await visitasModel.getEtapas(visita.id)).length;
+
+    if (flujoCambio || sinEtapas) {
+      await flujosModel.inicializarEtapasVisita({
+        visitaId: visita.id,
+        flujoTrabajoId: payload.flujo_trabajo_id,
+        usuarioId: req.user?.id,
+        replace: flujoCambio
+      });
+    }
   }
 
   const visitaActualizada = await visitasModel.findById(visita.id);

@@ -9,6 +9,7 @@ backend/node_modules/
 backend/.env
 frontend/node_modules/
 frontend/dist/
+frontend/.env
 backend/uploads/**/*.jpg
 backend/uploads/**/*.jpeg
 backend/uploads/**/*.png
