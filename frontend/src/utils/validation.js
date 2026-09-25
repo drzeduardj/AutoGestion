@@ -78,7 +78,10 @@ export const validateForm = (fields, form, mode) => {
   return errors;
 };
 
-export const validateImageFile = (file) => {
+// El tipo se valida antes de comprimir y el peso despues: una foto de celular
+// pasa los 5 MB en crudo y queda muy por debajo una vez reducida, asi que
+// rechazarla por tamano antes de tiempo bloquearia subidas validas.
+export const validateImageType = (file) => {
   if (!file) {
     return 'Selecciona una foto';
   }
@@ -87,7 +90,11 @@ export const validateImageFile = (file) => {
     return 'La foto debe ser JPG, PNG o WebP';
   }
 
-  if (file.size > imageRules.maxSizeBytes) {
+  return '';
+};
+
+export const validateImageSize = (file) => {
+  if (file && file.size > imageRules.maxSizeBytes) {
     return 'La foto no debe superar 5 MB';
   }
 

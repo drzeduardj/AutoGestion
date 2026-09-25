@@ -114,6 +114,13 @@ const getProgresoVisitas = async (limit = 20) => {
       )
       SELECT
         b.*,
+        (
+          SELECT f.numero
+          FROM facturas f
+          WHERE f.visita_id = b.visita_id
+          ORDER BY f.id DESC
+          LIMIT 1
+        ) AS factura_numero,
         COALESCE(
           (
             SELECT json_agg(

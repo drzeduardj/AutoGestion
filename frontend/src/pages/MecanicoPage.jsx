@@ -4,7 +4,12 @@ import {
   Ban,
   Camera,
   Check,
+  ChevronLeft,
+  ChevronRight,
+  CircleCheck,
+  CirclePause,
   ClipboardList,
+  Flag,
   Image,
   LoaderCircle,
   PackagePlus,
@@ -12,17 +17,56 @@ import {
   Save,
   Search,
   Trash2,
+  TriangleAlert,
   Wrench
 } from 'lucide-react';
 import { apiRequest, assetUrl, crudRequest } from '../api/client';
 import { estadosVisita } from '../constants/app';
 import { formatCurrency, formatDate, vehicleLabel } from '../utils/formatters';
-import { validateImageFile } from '../utils/validation';
+import { validateImageSize, validateImageType } from '../utils/validation';
+import { compressImage } from '../utils/image';
 import ConfirmModal from '../components/forms/ConfirmModal';
 import EmptyState from '../components/ui/EmptyState';
 import ErrorState from '../components/ui/ErrorState';
 
-const estadosMecanico = estadosVisita.filter((estado) => !['Entregado', 'Cancelado'].includes(estado));
+// Estados que el mecanico ve en su tablero: al finalizar, el trabajo sale de su lista.
+const estadosActivos = estadosVisita.filter((estado) => !['Finalizado', 'Entregado', 'Cancelado'].includes(estado));
+
+// Camino principal del trabajo. "En espera de repuesto" es una pausa dentro de "En proceso".
+const flujoEstados = ['Recibido', 'En diagnóstico', 'Pendiente de aprobación', 'En proceso', 'En prueba', 'Finalizado'];
+
+const accionesPorEstado = {
+  Recibido: [{ estado: 'En diagnóstico', label: 'Iniciar diagnóstico', primary: true }],
+  'En diagnóstico': [
+    { estado: 'Pendiente de aprobación', label: 'Enviar a aprobación', primary: true },
+    { estado: 'En proceso', label: 'Iniciar reparación' }
+  ],
+  'Pendiente de aprobación': [{ estado: 'En proceso', label: 'Aprobado: iniciar reparación', primary: true }],
+  'En proceso': [
+    { estado: 'En prueba', label: 'Pasar a prueba', primary: true },
+    { estado: 'En espera de repuesto', label: 'Pausar: esperar repuesto' }
+  ],
+  'En espera de repuesto': [{ estado: 'En proceso', label: 'Llegó el repuesto: reanudar', primary: true }],
+  'En prueba': [
+    { step: 3, label: 'Ir a finalizar', primary: true },
+    { estado: 'En proceso', label: 'Volver a reparación' }
+  ]
+};
+
+const wizardSteps = [
+  { label: 'Diagnóstico', icon: ClipboardList },
+  { label: 'Reparación', icon: Wrench },
+  { label: 'Evidencias', icon: Camera },
+  { label: 'Finalizar', icon: Flag }
+];
+
+const stepInicial = (estado) => {
+  if (['En proceso', 'En espera de repuesto'].includes(estado)) return 1;
+  if (estado === 'En prueba') return 3;
+  return 0;
+};
+
+const horaActual = () => new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
 const tiposFoto = ['Vehículo', 'Visita', 'Daño', 'Avance', 'Final', 'VIN', 'Kilometraje', 'Otro'];
 
 const initialNoteForm = {
@@ -61,10 +105,18 @@ function MecanicoPage({ session, data, loading, error, onRefresh, showToast, onR
   const [productError, setProductError] = useState('');
   const [itemError, setItemError] = useState('');
   const [photoError, setPhotoError] = useState('');
+  const [feedback, setFeedback] = useState(null);
+  // Trabajos finalizados en esta sesion: se ocultan de inmediato sin esperar la recarga.
+  const [finalizadosIds, setFinalizadosIds] = useState([]);
+
+  const trabajosActivos = useMemo(
+    () => trabajos.filter((trabajo) => trabajo.estado !== 'Finalizado' && !finalizadosIds.includes(trabajo.id)),
+    [finalizadosIds, trabajos]
+  );
 
   const filteredTrabajos = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return trabajos
+    return trabajosActivos
       .filter((trabajo) => !estadoFilter || trabajo.estado === estadoFilter)
       .filter((trabajo) => {
         if (!needle) return true;
@@ -77,13 +129,17 @@ function MecanicoPage({ session, data, loading, error, onRefresh, showToast, onR
           trabajo.motivo_visita
         ].some((value) => String(value || '').toLowerCase().includes(needle));
       });
-  }, [estadoFilter, query, trabajos]);
+  }, [estadoFilter, query, trabajosActivos]);
 
   useEffect(() => {
-    if (selectedId === undefined && trabajos[0]?.id) {
-      setSelectedId(trabajos[0].id);
+    if (selectedId === undefined && trabajosActivos[0]?.id) {
+      setSelectedId(trabajosActivos[0].id);
     }
-  }, [selectedId, trabajos]);
+  }, [selectedId, trabajosActivos]);
+
+  useEffect(() => {
+    setFeedback(null);
+  }, [selectedId]);
 
   useEffect(() => {
     let ignore = false;
@@ -148,17 +204,19 @@ function MecanicoPage({ session, data, loading, error, onRefresh, showToast, onR
     setDetailError('');
   };
 
-  const updateEstado = async (estado, { skipConfirm = false } = {}) => {
+  const updateEstado = async (estado, { skipConfirm = false, confirmMessage } = {}) => {
     if (!detail?.visita) return;
 
     if (!skipConfirm && estado === 'Finalizado') {
       setConfirmModal({
-        title: 'Confirmar estado',
-        message: 'Se marcara este trabajo como finalizado. Confirma que el avance ya fue revisado.',
+        title: 'Finalizar trabajo',
+        message: confirmMessage || 'El trabajo se marcara como finalizado y saldra de tu lista.',
         action: () => updateEstado(estado, { skipConfirm: true })
       });
       return;
     }
+
+    const estadoAnterior = detail.visita.estado;
 
     setSavingAction(`estado:${estado}`);
     try {
@@ -172,8 +230,17 @@ function MecanicoPage({ session, data, loading, error, onRefresh, showToast, onR
           observaciones: noteForm.observaciones || undefined
         }
       });
-      setDetail(payload);
-      showToast('Estado actualizado');
+      if (estado === 'Finalizado') {
+        const finalizadoId = detail.visita.id;
+        setFinalizadosIds((current) => [...current, finalizadoId]);
+        setDetail(null);
+        setSelectedId(undefined);
+        showToast(`${vehicleLabel(detail.visita)} finalizado. Se retiro de tu lista de trabajos.`);
+      } else {
+        setDetail(payload);
+        setFeedback({ text: `Estado cambiado de "${estadoAnterior}" a "${estado}"`, hora: horaActual() });
+        showToast(`Estado actualizado a "${estado}"`);
+      }
       onRefresh();
     } catch (err) {
       showToast(onRequestError?.(err) || err.message, 'danger');
@@ -200,6 +267,7 @@ function MecanicoPage({ session, data, loading, error, onRefresh, showToast, onR
         }
       });
       setDetail(payload);
+      setFeedback({ text: 'Diagnóstico y observaciones guardados', hora: horaActual() });
       showToast('Diagnostico guardado');
       onRefresh();
     } catch (err) {
@@ -318,20 +386,32 @@ function MecanicoPage({ session, data, loading, error, onRefresh, showToast, onR
     event.preventDefault();
     if (!detail?.visita) return;
 
-    const validationError = validateImageFile(photoForm.foto);
+    const typeError = validateImageType(photoForm.foto);
 
-    if (validationError) {
-      setPhotoError(validationError);
+    if (typeError) {
+      setPhotoError(typeError);
+      return;
+    }
+
+    setSavingAction('photo');
+    setPhotoError('');
+
+    // Se reduce antes de medir el peso: en crudo casi cualquier foto de
+    // celular superaria el limite.
+    const foto = await compressImage(photoForm.foto);
+    const sizeError = validateImageSize(foto);
+
+    if (sizeError) {
+      setPhotoError(sizeError);
+      setSavingAction('');
       return;
     }
 
     const formData = new FormData();
     formData.append('tipo', photoForm.tipo);
     formData.append('descripcion', photoForm.descripcion);
-    formData.append('foto', photoForm.foto);
+    formData.append('foto', foto);
 
-    setSavingAction('photo');
-    setPhotoError('');
     try {
       const payload = await crudRequest({
         path: `/mecanico/mis-trabajos/${detail.visita.id}/fotos`,
@@ -401,7 +481,7 @@ function MecanicoPage({ session, data, loading, error, onRefresh, showToast, onR
           </label>
           <select className="mechanic-filter" value={estadoFilter} onChange={(event) => setEstadoFilter(event.target.value)}>
             <option value="">Todos</option>
-            {estadosMecanico.map((estado) => (
+            {estadosActivos.map((estado) => (
               <option key={estado} value={estado}>{estado}</option>
             ))}
           </select>
@@ -435,12 +515,14 @@ function MecanicoPage({ session, data, loading, error, onRefresh, showToast, onR
         </section>
 
         <section className="mechanic-detail panel">
-        {!selectedId ? <EmptyState text="Selecciona un trabajo" /> : null}
+        {!selectedId ? <EmptyState text={trabajosActivos.length ? 'Selecciona un trabajo' : 'No tienes trabajos pendientes'} /> : null}
         {detailLoading ? <EmptyState text="Cargando detalle..." /> : null}
         {detailError ? <ErrorState text={detailError} onRetry={refreshDetail} /> : null}
         {!detailLoading && !detailError && detail ? (
           <TrabajoDetalle
+            key={detail.visita.id}
             detail={detail}
+            feedback={feedback}
             noteForm={noteForm}
             productForm={productForm}
             photoForm={photoForm}
@@ -487,6 +569,7 @@ function MecanicoPage({ session, data, loading, error, onRefresh, showToast, onR
 
 function TrabajoDetalle({
   detail,
+  feedback,
   noteForm,
   productForm,
   photoForm,
@@ -510,6 +593,33 @@ function TrabajoDetalle({
   itemError
 }) {
   const { visita, servicios = [], productos: productosUsados = [], items = [], fotos = [], bitacora = [], etapas = [], progreso } = detail;
+  const [step, setStep] = useState(() => stepInicial(visita.estado));
+
+  const notasPendientes = (noteForm.diagnostico || '') !== (visita.diagnostico || '')
+    || (noteForm.observaciones || '') !== (visita.observaciones || '');
+  const etapasCerradas = etapas.filter((etapa) => ['Completado', 'Omitido'].includes(etapa.estado)).length;
+  const etapasPendientes = etapas.length - etapasCerradas;
+
+  const stepCompleto = [
+    Boolean(visita.diagnostico),
+    etapas.length > 0 && etapasPendientes === 0,
+    fotos.length > 0,
+    false
+  ];
+
+  const avisos = [
+    !visita.diagnostico && !noteForm.diagnostico ? 'No hay diagnóstico registrado.' : null,
+    etapasPendientes > 0 ? `Quedan ${etapasPendientes} etapa(s) sin completar.` : null,
+    !fotos.length ? 'No se han cargado fotos del trabajo.' : null,
+    notasPendientes ? 'Hay cambios en el diagnóstico sin guardar; se guardarán al finalizar.' : null
+  ].filter(Boolean);
+
+  const finalizar = () => {
+    const base = `${vehicleLabel(visita)} se marcará como Finalizado y saldrá de tu lista de trabajos.`;
+    onEstado('Finalizado', {
+      confirmMessage: avisos.length ? `${base} Atención: ${avisos.join(' ')}` : base
+    });
+  };
 
   return (
     <div className="work-detail-content">
@@ -524,324 +634,491 @@ function TrabajoDetalle({
         </div>
       </div>
 
-      <section className="mechanic-section">
-        <h3>Vehiculo</h3>
-        <div className="detail-grid">
-          <DetailItem label="Placa" value={visita.placa} />
-          <DetailItem label="Marca" value={visita.marca} />
-          <DetailItem label="Modelo" value={visita.modelo} />
-          <DetailItem label="Color" value={visita.color} />
-          <DetailItem label="Anio" value={visita.anio} />
-          <DetailItem label="Kilometraje" value={visita.kilometraje_ingreso} />
-        </div>
-      </section>
+      <EstadoFlow
+        estado={visita.estado}
+        feedback={feedback}
+        savingAction={savingAction}
+        onEstado={onEstado}
+        onGoToStep={setStep}
+      />
 
-      <section className="mechanic-section">
-        <h3>Trabajo</h3>
-        <div className="work-summary">
-          <p><strong>Motivo:</strong> {visita.motivo_visita || 'Sin dato'}</p>
-          <p><strong>Problema:</strong> {visita.descripcion_problema || 'Sin dato'}</p>
-          <p><strong>Ingreso:</strong> {formatDate(visita.fecha_ingreso)}</p>
-        </div>
-      </section>
+      <nav className="wizard-steps" aria-label="Pasos del trabajo">
+        {wizardSteps.map(({ label, icon: Icon }, index) => {
+          const className = [
+            'wizard-step',
+            index === step ? 'wizard-step-active' : '',
+            stepCompleto[index] ? 'wizard-step-done' : ''
+          ].filter(Boolean).join(' ');
 
-      <section className="mechanic-section">
-        <h3>Estado</h3>
-        <div className="state-button-grid">
-          {estadosMecanico.map((estado) => (
+          return (
             <button
-              className={visita.estado === estado ? 'state-button state-button-active' : 'state-button'}
-              key={estado}
+              className={className}
+              key={label}
               type="button"
-              onClick={() => onEstado(estado)}
-              disabled={savingAction.startsWith('estado:')}
+              onClick={() => setStep(index)}
+              aria-current={index === step ? 'step' : undefined}
             >
-              {savingAction === `estado:${estado}` ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : null}
-              {estado}
+              <span className="wizard-step-number">
+                {stepCompleto[index] ? <Check size={16} aria-hidden="true" /> : index + 1}
+              </span>
+              <span className="wizard-step-label">
+                <Icon size={16} aria-hidden="true" />
+                {label}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {step === 0 ? (
+        <>
+          <section className="mechanic-section">
+            <h3>Vehiculo</h3>
+            <div className="detail-grid">
+              <DetailItem label="Placa" value={visita.placa} />
+              <DetailItem label="Marca" value={visita.marca} />
+              <DetailItem label="Modelo" value={visita.modelo} />
+              <DetailItem label="Color" value={visita.color} />
+              <DetailItem label="Anio" value={visita.anio} />
+              <DetailItem label="Kilometraje" value={visita.kilometraje_ingreso} />
+            </div>
+          </section>
+
+          <section className="mechanic-section">
+            <h3>Trabajo solicitado</h3>
+            <div className="work-summary">
+              <p><strong>Motivo:</strong> {visita.motivo_visita || 'Sin dato'}</p>
+              <p><strong>Problema:</strong> {visita.descripcion_problema || 'Sin dato'}</p>
+              <p><strong>Ingreso:</strong> {formatDate(visita.fecha_ingreso)}</p>
+            </div>
+            <CompactList
+              rows={servicios}
+              empty="Sin servicios asignados"
+              render={(servicio) => (
+                <>
+                  <strong>{servicio.servicio_nombre}</strong>
+                  <span>{servicio.estado}</span>
+                </>
+              )}
+            />
+          </section>
+
+          <section className="mechanic-section">
+            <h3>Diagnostico y observaciones</h3>
+            <form className="mechanic-form" onSubmit={onSaveNotes}>
+              <label className="field">
+                Diagnostico
+                <textarea
+                  value={noteForm.diagnostico}
+                  onChange={(event) => onNoteChange((current) => ({ ...current, diagnostico: event.target.value }))}
+                  rows={4}
+                />
+              </label>
+              <label className="field">
+                Observaciones
+                <textarea
+                  value={noteForm.observaciones}
+                  onChange={(event) => onNoteChange((current) => ({ ...current, observaciones: event.target.value }))}
+                  rows={3}
+                />
+              </label>
+              <div className="save-row">
+                <button className="primary-button action-button" type="submit" disabled={savingAction === 'notes' || !notasPendientes}>
+                  {savingAction === 'notes' ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : <Save size={18} aria-hidden="true" />}
+                  Guardar diagnóstico
+                </button>
+                <span className={notasPendientes ? 'save-status save-status-pending' : 'save-status'}>
+                  {notasPendientes ? 'Cambios sin guardar' : 'Todo guardado'}
+                </span>
+              </div>
+            </form>
+          </section>
+        </>
+      ) : null}
+
+      {step === 1 ? (
+        <>
+          <section className="mechanic-section">
+            <h3>Linea de trabajo</h3>
+            {progreso ? (
+              <div className={progreso.alerta_sin_avance ? 'stage-progress stage-progress-warning' : 'stage-progress'}>
+                <div className="progress-card-head">
+                  <div>
+                    <strong>{progreso.flujo_trabajo || visita.flujo_trabajo_nombre || 'Flujo de trabajo'}</strong>
+                    <span>{progreso.etapa_actual || 'Sin etapa activa'}</span>
+                  </div>
+                  <b>{Number(progreso.porcentaje_avance || 0).toFixed(0)}%</b>
+                </div>
+                <div className="progress-track">
+                  <span style={{ width: `${Math.min(Number(progreso.porcentaje_avance || 0), 100)}%` }} />
+                </div>
+              </div>
+            ) : null}
+            <div className="stage-list">
+              {etapas.length ? etapas.map((etapa) => {
+                const esFinal = etapa.estado === 'Completado' || etapa.estado === 'Omitido';
+
+                return (
+                  <article className={`stage-card stage-${String(etapa.estado).toLowerCase().replaceAll(' ', '-')}`} key={etapa.id}>
+                    <div>
+                      <strong>{etapa.orden}. {etapa.nombre_etapa}</strong>
+                      {!esFinal ? <span>{etapa.estado}</span> : null}
+                    </div>
+                    {esFinal ? (
+                      <div className={`stage-final stage-final-${etapa.estado.toLowerCase()}`}>
+                        {etapa.estado === 'Completado'
+                          ? <Check size={16} aria-hidden="true" />
+                          : <Ban size={16} aria-hidden="true" />}
+                        {etapa.estado}
+                      </div>
+                    ) : (
+                      <div className="stage-actions">
+                        <button type="button" onClick={() => onUpdateEtapa(etapa, 'En proceso')} disabled={savingAction.startsWith(`etapa:${etapa.id}:`)}>
+                          En proceso
+                        </button>
+                        <button type="button" onClick={() => onUpdateEtapa(etapa, 'Completado')} disabled={savingAction.startsWith(`etapa:${etapa.id}:`)}>
+                          Completado
+                        </button>
+                        <button type="button" onClick={() => onUpdateEtapa(etapa, 'Omitido')} disabled={savingAction.startsWith(`etapa:${etapa.id}:`)}>
+                          Omitir
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                );
+              }) : <div className="compact-empty">Sin etapas inicializadas</div>}
+            </div>
+          </section>
+
+          <section className="mechanic-section">
+            <h3>Productos usados</h3>
+            <form className="mechanic-form product-form" onSubmit={onAddProduct} noValidate>
+              <label className="field">
+                Producto
+                <select
+                  value={productForm.producto_id}
+                  onChange={(event) => onProductChange((current) => ({ ...current, producto_id: event.target.value }))}
+                  required
+                >
+                  <option value="">Seleccionar</option>
+                  {productos.map((producto) => (
+                    <option key={producto.id} value={producto.id}>
+                      {[producto.codigo, producto.nombre, producto.marca].filter(Boolean).join(' - ')}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field quantity-field">
+                Cantidad
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  inputMode="numeric"
+                  value={productForm.cantidad}
+                  onChange={(event) => onProductChange((current) => ({ ...current, cantidad: event.target.value.replace(/[^\d]/g, '') }))}
+                  onKeyDown={(event) => {
+                    if (['.', ',', 'e', 'E', '+', '-'].includes(event.key)) {
+                      event.preventDefault();
+                    }
+                  }}
+                  required
+                />
+              </label>
+              <label className="field">
+                Observaciones
+                <input
+                  value={productForm.observaciones}
+                  onChange={(event) => onProductChange((current) => ({ ...current, observaciones: event.target.value }))}
+                />
+              </label>
+              <button className="primary-button action-button" type="submit" disabled={savingAction === 'product'}>
+                {savingAction === 'product' ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : <PackagePlus size={18} aria-hidden="true" />}
+                Registrar producto
+              </button>
+              {productError ? <div className="form-error full-row">{productError}</div> : null}
+            </form>
+            <CompactList
+              rows={productosUsados}
+              empty="Sin productos usados"
+              render={(producto) => (
+                <>
+                  <strong>{producto.producto_nombre}</strong>
+                  <span>{producto.cantidad} {producto.unidad_medida || ''}</span>
+                </>
+              )}
+            />
+          </section>
+
+          <section className="mechanic-section">
+            <h3>Items adicionales (manual)</h3>
+            <p className="mechanic-hint">Servicio o material que no esta en el catalogo. No afecta el inventario; el precio sugerido se podra ajustar en el resumen de cobro.</p>
+            <form className="mechanic-form item-form" onSubmit={onAddItem} noValidate>
+              <label className="field">
+                Tipo
+                <select
+                  value={itemForm.tipo}
+                  onChange={(event) => onItemChange((current) => ({ ...current, tipo: event.target.value }))}
+                >
+                  <option value="Servicio">Servicio</option>
+                  <option value="Material">Material</option>
+                </select>
+              </label>
+              <label className="field">
+                Descripcion
+                <input
+                  value={itemForm.descripcion}
+                  onChange={(event) => onItemChange((current) => ({ ...current, descripcion: event.target.value }))}
+                  maxLength={255}
+                  required
+                />
+              </label>
+              <label className="field quantity-field">
+                Cantidad
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  inputMode="numeric"
+                  value={itemForm.cantidad}
+                  onChange={(event) => onItemChange((current) => ({ ...current, cantidad: event.target.value.replace(/[^\d]/g, '') }))}
+                  onKeyDown={(event) => { if (['.', ',', 'e', 'E', '+', '-'].includes(event.key)) event.preventDefault(); }}
+                  required
+                />
+              </label>
+              <label className="field quantity-field">
+                Precio sugerido
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  inputMode="numeric"
+                  value={itemForm.precio_sugerido}
+                  onChange={(event) => onItemChange((current) => ({ ...current, precio_sugerido: event.target.value.replace(/[^\d]/g, '') }))}
+                  onKeyDown={(event) => { if (['.', ',', 'e', 'E', '+', '-'].includes(event.key)) event.preventDefault(); }}
+                  required
+                />
+              </label>
+              <button className="primary-button action-button" type="submit" disabled={savingAction === 'item'}>
+                {savingAction === 'item' ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : <Plus size={18} aria-hidden="true" />}
+                Agregar item
+              </button>
+              {itemError ? <div className="form-error full-row">{itemError}</div> : null}
+            </form>
+            {items.length ? (
+              <div className="compact-list">
+                {items.map((item) => (
+                  <div className="compact-row item-row" key={item.id}>
+                    <strong>{item.descripcion}</strong>
+                    <span>{item.tipo} · {Number(item.cantidad)} × {formatCurrency(item.precio_sugerido)}</span>
+                    <button
+                      className="icon-button"
+                      type="button"
+                      onClick={() => onRemoveItem(item.id)}
+                      disabled={savingAction === `item:${item.id}`}
+                      aria-label="Quitar item"
+                      title="Quitar item"
+                    >
+                      <Trash2 size={16} aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : <div className="compact-empty">Sin items adicionales</div>}
+          </section>
+        </>
+      ) : null}
+
+      {step === 2 ? (
+        <section className="mechanic-section">
+          <h3>Fotos</h3>
+          <form className="mechanic-form photo-form" onSubmit={onUploadPhoto} noValidate>
+            <label className="field">
+              Tipo
+              <select value={photoForm.tipo} onChange={(event) => onPhotoChange((current) => ({ ...current, tipo: event.target.value }))}>
+                {tiposFoto.map((tipo) => (
+                  <option key={tipo} value={tipo}>{tipo}</option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              Descripcion
+              <input
+                value={photoForm.descripcion}
+                onChange={(event) => onPhotoChange((current) => ({ ...current, descripcion: event.target.value }))}
+              />
+            </label>
+            <label className="file-picker">
+              <Camera size={20} aria-hidden="true" />
+              <span>{photoForm.foto?.name || 'Seleccionar foto'}</span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(event) => onPhotoChange((current) => ({ ...current, foto: event.target.files?.[0] || null }))}
+                required
+              />
+            </label>
+            <button className="primary-button action-button" type="submit" disabled={savingAction === 'photo'}>
+              {savingAction === 'photo' ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : <Image size={18} aria-hidden="true" />}
+              Subir foto
+            </button>
+            {photoError ? <div className="form-error full-row">{photoError}</div> : null}
+          </form>
+          <PhotoGrid fotos={fotos} />
+        </section>
+      ) : null}
+
+      {step === 3 ? (
+        <>
+          <section className="mechanic-section">
+            <h3>Revisión final</h3>
+            <div className="finish-checklist">
+              <FinishCheck ok={Boolean(visita.diagnostico)} label="Diagnóstico" detail={visita.diagnostico ? 'Registrado' : 'Sin registrar'} />
+              <FinishCheck
+                ok={etapas.length > 0 && etapasPendientes === 0}
+                label="Etapas"
+                detail={etapas.length ? `${etapasCerradas} de ${etapas.length} cerradas` : 'Sin etapas'}
+              />
+              <FinishCheck ok label="Productos usados" detail={`${productosUsados.length} registrado(s)`} />
+              <FinishCheck ok label="Items adicionales" detail={`${items.length} registrado(s)`} />
+              <FinishCheck ok={fotos.length > 0} label="Fotos" detail={`${fotos.length} cargada(s)`} />
+            </div>
+            {avisos.length ? (
+              <div className="finish-warning">
+                <TriangleAlert size={18} aria-hidden="true" />
+                <div>
+                  <strong>Revisa antes de finalizar</strong>
+                  {avisos.map((aviso) => <span key={aviso}>{aviso}</span>)}
+                </div>
+              </div>
+            ) : null}
+            <button
+              className="primary-button action-button finish-button"
+              type="button"
+              onClick={finalizar}
+              disabled={Boolean(savingAction)}
+            >
+              {savingAction === 'estado:Finalizado' ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : <Flag size={18} aria-hidden="true" />}
+              Finalizar trabajo
+            </button>
+            <p className="mechanic-hint">Al finalizar se notifica a recepción y el vehículo sale de tu lista de trabajos.</p>
+          </section>
+
+          <section className="mechanic-section">
+            <h3>Bitacora</h3>
+            <CompactList
+              rows={bitacora}
+              empty="Sin historial"
+              render={(item) => (
+                <>
+                  <strong>{item.estado_nuevo || item.estado || 'Cambio registrado'}</strong>
+                  <span>{item.observaciones || item.descripcion || formatDate(item.fecha_creacion)}</span>
+                </>
+              )}
+            />
+          </section>
+        </>
+      ) : null}
+
+      <div className="wizard-nav">
+        <button className="secondary-button" type="button" onClick={() => setStep((current) => current - 1)} disabled={step === 0}>
+          <ChevronLeft size={18} aria-hidden="true" />
+          Anterior
+        </button>
+        {step < wizardSteps.length - 1 ? (
+          <button className="secondary-button" type="button" onClick={() => setStep((current) => current + 1)}>
+            Siguiente: {wizardSteps[step + 1].label}
+            <ChevronRight size={18} aria-hidden="true" />
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function EstadoFlow({ estado, feedback, savingAction, onEstado, onGoToStep }) {
+  const enPausa = estado === 'En espera de repuesto';
+  const actualIndex = flujoEstados.indexOf(enPausa ? 'En proceso' : estado);
+  const acciones = accionesPorEstado[estado] || [];
+  const guardandoEstado = savingAction.startsWith('estado:');
+  const otrosEstados = estadosActivos.filter((opcion) => opcion !== estado);
+
+  return (
+    <section className="estado-flow">
+      <ol className="estado-track">
+        {flujoEstados.map((paso, index) => {
+          const done = index < actualIndex;
+          const current = index === actualIndex;
+          const className = [
+            'estado-track-step',
+            done ? 'estado-track-done' : '',
+            current ? 'estado-track-current' : '',
+            current && enPausa ? 'estado-track-paused' : ''
+          ].filter(Boolean).join(' ');
+
+          return (
+            <li className={className} key={paso} aria-current={current ? 'step' : undefined}>
+              <span className="estado-track-dot">
+                {done ? <Check size={14} aria-hidden="true" /> : null}
+                {current && enPausa ? <CirclePause size={14} aria-hidden="true" /> : null}
+              </span>
+              <span className="estado-track-label">{current && enPausa ? 'Esperando repuesto' : paso}</span>
+            </li>
+          );
+        })}
+      </ol>
+
+      <div className="estado-flow-body">
+        <div className="estado-flow-current">
+          <span>Estado actual</span>
+          <strong>{estado}</strong>
+        </div>
+        <div className="estado-flow-actions">
+          {acciones.map((accion) => (
+            <button
+              className={accion.primary ? 'primary-button action-button' : 'secondary-button'}
+              key={accion.label}
+              type="button"
+              disabled={guardandoEstado}
+              onClick={() => (accion.step !== undefined ? onGoToStep(accion.step) : onEstado(accion.estado))}
+            >
+              {accion.estado && savingAction === `estado:${accion.estado}` ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : null}
+              {accion.label}
+              {accion.primary ? <ChevronRight size={18} aria-hidden="true" /> : null}
             </button>
           ))}
-        </div>
-      </section>
-
-      <section className="mechanic-section">
-        <h3>Linea de trabajo</h3>
-        {progreso ? (
-          <div className={progreso.alerta_sin_avance ? 'stage-progress stage-progress-warning' : 'stage-progress'}>
-            <div className="progress-card-head">
-              <div>
-                <strong>{progreso.flujo_trabajo || visita.flujo_trabajo_nombre || 'Flujo de trabajo'}</strong>
-                <span>{progreso.etapa_actual || 'Sin etapa activa'}</span>
-              </div>
-              <b>{Number(progreso.porcentaje_avance || 0).toFixed(0)}%</b>
-            </div>
-            <div className="progress-track">
-              <span style={{ width: `${Math.min(Number(progreso.porcentaje_avance || 0), 100)}%` }} />
-            </div>
-          </div>
-        ) : null}
-        <div className="stage-list">
-          {etapas.length ? etapas.map((etapa) => {
-            const esFinal = etapa.estado === 'Completado' || etapa.estado === 'Omitido';
-
-            return (
-              <article className={`stage-card stage-${String(etapa.estado).toLowerCase().replaceAll(' ', '-')}`} key={etapa.id}>
-                <div>
-                  <strong>{etapa.orden}. {etapa.nombre_etapa}</strong>
-                  {!esFinal ? <span>{etapa.estado}</span> : null}
-                </div>
-                {esFinal ? (
-                  <div className={`stage-final stage-final-${etapa.estado.toLowerCase()}`}>
-                    {etapa.estado === 'Completado'
-                      ? <Check size={16} aria-hidden="true" />
-                      : <Ban size={16} aria-hidden="true" />}
-                    {etapa.estado}
-                  </div>
-                ) : (
-                  <div className="stage-actions">
-                    <button type="button" onClick={() => onUpdateEtapa(etapa, 'En proceso')} disabled={savingAction.startsWith(`etapa:${etapa.id}:`)}>
-                      En proceso
-                    </button>
-                    <button type="button" onClick={() => onUpdateEtapa(etapa, 'Completado')} disabled={savingAction.startsWith(`etapa:${etapa.id}:`)}>
-                      Completado
-                    </button>
-                    <button type="button" onClick={() => onUpdateEtapa(etapa, 'Omitido')} disabled={savingAction.startsWith(`etapa:${etapa.id}:`)}>
-                      Omitir
-                    </button>
-                  </div>
-                )}
-              </article>
-            );
-          }) : <div className="compact-empty">Sin etapas inicializadas</div>}
-        </div>
-      </section>
-
-      <section className="mechanic-section">
-        <h3>Diagnostico y observaciones</h3>
-        <form className="mechanic-form" onSubmit={onSaveNotes}>
-          <label className="field">
-            Diagnostico
-            <textarea
-              value={noteForm.diagnostico}
-              onChange={(event) => onNoteChange((current) => ({ ...current, diagnostico: event.target.value }))}
-              rows={4}
-            />
-          </label>
-          <label className="field">
-            Observaciones
-            <textarea
-              value={noteForm.observaciones}
-              onChange={(event) => onNoteChange((current) => ({ ...current, observaciones: event.target.value }))}
-              rows={3}
-            />
-          </label>
-          <button className="primary-button action-button" type="submit" disabled={savingAction === 'notes'}>
-            {savingAction === 'notes' ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : <Save size={18} aria-hidden="true" />}
-            Guardar avance
-          </button>
-        </form>
-      </section>
-
-      <section className="mechanic-section">
-        <h3>Productos usados</h3>
-        <form className="mechanic-form product-form" onSubmit={onAddProduct} noValidate>
-          <label className="field">
-            Producto
-            <select
-              value={productForm.producto_id}
-              onChange={(event) => onProductChange((current) => ({ ...current, producto_id: event.target.value }))}
-              required
-            >
-              <option value="">Seleccionar</option>
-              {productos.map((producto) => (
-                <option key={producto.id} value={producto.id}>
-                  {[producto.codigo, producto.nombre, producto.marca].filter(Boolean).join(' - ')}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field quantity-field">
-            Cantidad
-            <input
-              type="number"
-              min="1"
-              step="1"
-              inputMode="numeric"
-              value={productForm.cantidad}
-              onChange={(event) => onProductChange((current) => ({ ...current, cantidad: event.target.value.replace(/[^\d]/g, '') }))}
-              onKeyDown={(event) => {
-                if (['.', ',', 'e', 'E', '+', '-'].includes(event.key)) {
-                  event.preventDefault();
-                }
-              }}
-              required
-            />
-          </label>
-          <label className="field">
-            Observaciones
-            <input
-              value={productForm.observaciones}
-              onChange={(event) => onProductChange((current) => ({ ...current, observaciones: event.target.value }))}
-            />
-          </label>
-          <button className="primary-button action-button" type="submit" disabled={savingAction === 'product'}>
-            {savingAction === 'product' ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : <PackagePlus size={18} aria-hidden="true" />}
-            Registrar producto
-          </button>
-          {productError ? <div className="form-error full-row">{productError}</div> : null}
-        </form>
-        <CompactList
-          rows={productosUsados}
-          empty="Sin productos usados"
-          render={(producto) => (
-            <>
-              <strong>{producto.producto_nombre}</strong>
-              <span>{producto.cantidad} {producto.unidad_medida || ''}</span>
-            </>
-          )}
-        />
-      </section>
-
-      <section className="mechanic-section">
-        <h3>Items adicionales (manual)</h3>
-        <p className="mechanic-hint">Servicio o material que no esta en el catalogo. No afecta el inventario; el precio sugerido se podra ajustar en el resumen de cobro.</p>
-        <form className="mechanic-form item-form" onSubmit={onAddItem} noValidate>
-          <label className="field">
-            Tipo
-            <select
-              value={itemForm.tipo}
-              onChange={(event) => onItemChange((current) => ({ ...current, tipo: event.target.value }))}
-            >
-              <option value="Servicio">Servicio</option>
-              <option value="Material">Material</option>
-            </select>
-          </label>
-          <label className="field">
-            Descripcion
-            <input
-              value={itemForm.descripcion}
-              onChange={(event) => onItemChange((current) => ({ ...current, descripcion: event.target.value }))}
-              maxLength={255}
-              required
-            />
-          </label>
-          <label className="field quantity-field">
-            Cantidad
-            <input
-              type="number"
-              min="1"
-              step="1"
-              inputMode="numeric"
-              value={itemForm.cantidad}
-              onChange={(event) => onItemChange((current) => ({ ...current, cantidad: event.target.value.replace(/[^\d]/g, '') }))}
-              onKeyDown={(event) => { if (['.', ',', 'e', 'E', '+', '-'].includes(event.key)) event.preventDefault(); }}
-              required
-            />
-          </label>
-          <label className="field quantity-field">
-            Precio sugerido
-            <input
-              type="number"
-              min="0"
-              step="1"
-              inputMode="numeric"
-              value={itemForm.precio_sugerido}
-              onChange={(event) => onItemChange((current) => ({ ...current, precio_sugerido: event.target.value.replace(/[^\d]/g, '') }))}
-              onKeyDown={(event) => { if (['.', ',', 'e', 'E', '+', '-'].includes(event.key)) event.preventDefault(); }}
-              required
-            />
-          </label>
-          <button className="primary-button action-button" type="submit" disabled={savingAction === 'item'}>
-            {savingAction === 'item' ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : <Plus size={18} aria-hidden="true" />}
-            Agregar item
-          </button>
-          {itemError ? <div className="form-error full-row">{itemError}</div> : null}
-        </form>
-        {items.length ? (
-          <div className="compact-list">
-            {items.map((item) => (
-              <div className="compact-row item-row" key={item.id}>
-                <strong>{item.descripcion}</strong>
-                <span>{item.tipo} · {Number(item.cantidad)} × {formatCurrency(item.precio_sugerido)}</span>
-                <button
-                  className="icon-button"
-                  type="button"
-                  onClick={() => onRemoveItem(item.id)}
-                  disabled={savingAction === `item:${item.id}`}
-                  aria-label="Quitar item"
-                  title="Quitar item"
-                >
-                  <Trash2 size={16} aria-hidden="true" />
-                </button>
-              </div>
+          <select
+            className="estado-flow-other"
+            value=""
+            disabled={guardandoEstado}
+            onChange={(event) => event.target.value && onEstado(event.target.value)}
+            aria-label="Cambiar a otro estado"
+          >
+            <option value="">Otro estado…</option>
+            {otrosEstados.map((opcion) => (
+              <option key={opcion} value={opcion}>{opcion}</option>
             ))}
-          </div>
-        ) : <div className="compact-empty">Sin items adicionales</div>}
-      </section>
+          </select>
+        </div>
+      </div>
 
-      <section className="mechanic-section">
-        <h3>Fotos</h3>
-        <form className="mechanic-form photo-form" onSubmit={onUploadPhoto} noValidate>
-          <label className="field">
-            Tipo
-            <select value={photoForm.tipo} onChange={(event) => onPhotoChange((current) => ({ ...current, tipo: event.target.value }))}>
-              {tiposFoto.map((tipo) => (
-                <option key={tipo} value={tipo}>{tipo}</option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            Descripcion
-            <input
-              value={photoForm.descripcion}
-              onChange={(event) => onPhotoChange((current) => ({ ...current, descripcion: event.target.value }))}
-            />
-          </label>
-          <label className="file-picker">
-            <Camera size={20} aria-hidden="true" />
-            <span>{photoForm.foto?.name || 'Seleccionar foto'}</span>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={(event) => onPhotoChange((current) => ({ ...current, foto: event.target.files?.[0] || null }))}
-              required
-            />
-          </label>
-          <button className="primary-button action-button" type="submit" disabled={savingAction === 'photo'}>
-            {savingAction === 'photo' ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : <Image size={18} aria-hidden="true" />}
-            Subir foto
-          </button>
-          {photoError ? <div className="form-error full-row">{photoError}</div> : null}
-        </form>
-        <PhotoGrid fotos={fotos} />
-      </section>
+      {feedback ? (
+        <div className="estado-flow-feedback" role="status">
+          <CircleCheck size={18} aria-hidden="true" />
+          <span>{feedback.text}</span>
+          <small>{feedback.hora}</small>
+        </div>
+      ) : null}
+    </section>
+  );
+}
 
-      <section className="mechanic-section">
-        <h3>Servicios</h3>
-        <CompactList
-          rows={servicios}
-          empty="Sin servicios asignados"
-          render={(servicio) => (
-            <>
-              <strong>{servicio.servicio_nombre}</strong>
-              <span>{servicio.estado}</span>
-            </>
-          )}
-        />
-      </section>
-
-      <section className="mechanic-section">
-        <h3>Bitacora</h3>
-        <CompactList
-          rows={bitacora}
-          empty="Sin historial"
-          render={(item) => (
-            <>
-              <strong>{item.estado_nuevo || item.estado || 'Cambio registrado'}</strong>
-              <span>{item.observaciones || item.descripcion || formatDate(item.fecha_creacion)}</span>
-            </>
-          )}
-        />
-      </section>
+function FinishCheck({ ok, label, detail }) {
+  return (
+    <div className={ok ? 'finish-check finish-check-ok' : 'finish-check finish-check-warn'}>
+      {ok ? <CircleCheck size={18} aria-hidden="true" /> : <TriangleAlert size={18} aria-hidden="true" />}
+      <strong>{label}</strong>
+      <span>{detail}</span>
     </div>
   );
 }

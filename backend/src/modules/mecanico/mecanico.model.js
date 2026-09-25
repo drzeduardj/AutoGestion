@@ -52,7 +52,9 @@ const listMisTrabajos = async (mecanicoId, { estado, activas = true } = {}) => {
   }
 
   if (activas) {
-    filters.push("v.estado NOT IN ('Entregado'::estado_visita, 'Cancelado'::estado_visita)");
+    // Un trabajo finalizado ya queda en manos de recepcion/caja: sale del
+    // tablero del mecanico.
+    filters.push("v.estado NOT IN ('Finalizado'::estado_visita, 'Entregado'::estado_visita, 'Cancelado'::estado_visita)");
   }
 
   const result = await query(

@@ -4,12 +4,11 @@ import { apiRequest } from '../api/client';
 import EmptyState from '../components/ui/EmptyState';
 import ErrorState from '../components/ui/ErrorState';
 import SearchSelect from '../components/ui/SearchSelect';
-import FacturaDocument from '../components/ui/FacturaDocument';
+import FacturaDocument, { TALLER_NOMBRE } from '../components/ui/FacturaDocument';
 import CotizacionBuilder from '../components/forms/CotizacionBuilder';
-import { formatCurrency, formatDate, optionLabel, vehicleLabel } from '../utils/formatters';
+import { formatCurrency, formatDate, formatFechaLarga, formatMonto, optionLabel, vehicleLabel } from '../utils/formatters';
+import { numeroALetras } from '../utils/numeroALetras';
 import logo from '../assets/logo.svg';
-
-const TALLER_NOMBRE = 'Miguel Expert Collision';
 
 const documentOptions = [
   { key: 'orden', label: 'Orden de trabajo' },
@@ -292,20 +291,18 @@ function ReportesPage({ session, data, loading, error, onRefresh, onRequestError
   );
 }
 
+// Encabezado con el formato de la factura (plantilla assets/Factura.xlsx).
 function DocumentHeader({ title, code }) {
   return (
     <header className="document-header">
       <div className="document-brand">
         <img src={logo} alt={`Logo ${TALLER_NOMBRE}`} className="document-logo" />
-        <div>
-          <h2>{TALLER_NOMBRE}</h2>
-          <p>Taller automotriz</p>
-        </div>
+        <h2>{TALLER_NOMBRE}</h2>
       </div>
       <div>
         <strong>{title}</strong>
-        <span>{code}</span>
-        <small>Emitido: {formatDate(new Date().toISOString())}</small>
+        <p><span>Fecha:</span> {formatFechaLarga(new Date())}</p>
+        <p><span>No.:</span> {code}</p>
       </div>
     </header>
   );
@@ -335,9 +332,9 @@ function ServicesTable({ servicios, showDescription = false }) {
           <tr>
             <th>Servicio</th>
             {showDescription ? <th>Detalle</th> : null}
-            <th>Cantidad</th>
-            <th>Precio</th>
-            <th>Subtotal</th>
+            <th className="num">Cant.</th>
+            <th className="num">Precio por unidad</th>
+            <th className="num">Total</th>
           </tr>
         </thead>
         <tbody>
@@ -345,9 +342,9 @@ function ServicesTable({ servicios, showDescription = false }) {
             <tr key={servicio.id}>
               <td>{servicio.servicio_nombre}</td>
               {showDescription ? <td>{servicio.descripcion_adicional || servicio.observaciones || 'Sin detalle'}</td> : null}
-              <td>{Number(servicio.cantidad || 0).toFixed(0)}</td>
-              <td>{formatCurrency(servicio.precio_acordado)}</td>
-              <td>{formatCurrency(servicio.subtotal)}</td>
+              <td className="num">{Number(servicio.cantidad || 0).toFixed(0)}</td>
+              <td className="num">{formatMonto(servicio.precio_acordado)}</td>
+              <td className="num">{formatMonto(servicio.subtotal)}</td>
             </tr>
           )) : (
             <tr>
@@ -358,7 +355,7 @@ function ServicesTable({ servicios, showDescription = false }) {
         <tfoot>
           <tr>
             <td colSpan={showDescription ? 4 : 3}>Total servicios</td>
-            <td>{formatCurrency(total)}</td>
+            <td className="num">{formatMonto(total)}</td>
           </tr>
         </tfoot>
       </table>
@@ -376,18 +373,18 @@ function ProductsTable({ productos }) {
         <thead>
           <tr>
             <th>Producto</th>
-            <th>Cantidad</th>
-            <th>Precio ref.</th>
-            <th>Subtotal ref.</th>
+            <th className="num">Cant.</th>
+            <th className="num">Precio ref.</th>
+            <th className="num">Total ref.</th>
           </tr>
         </thead>
         <tbody>
           {productos.length ? productos.map((producto) => (
             <tr key={producto.id}>
               <td>{[producto.codigo, producto.producto_nombre, producto.producto_marca].filter(Boolean).join(' - ')}</td>
-              <td>{Number(producto.cantidad || 0).toFixed(0)} {producto.unidad_medida || ''}</td>
-              <td>{formatCurrency(producto.precio_referencia)}</td>
-              <td>{formatCurrency(producto.subtotal_referencia)}</td>
+              <td className="num">{Number(producto.cantidad || 0).toFixed(0)} {producto.unidad_medida || ''}</td>
+              <td className="num">{formatMonto(producto.precio_referencia)}</td>
+              <td className="num">{formatMonto(producto.subtotal_referencia)}</td>
             </tr>
           )) : (
             <tr>
@@ -398,7 +395,7 @@ function ProductsTable({ productos }) {
         <tfoot>
           <tr>
             <td colSpan={3}>Total productos ref.</td>
-            <td>{formatCurrency(total)}</td>
+            <td className="num">{formatMonto(total)}</td>
           </tr>
         </tfoot>
       </table>
@@ -467,7 +464,7 @@ function VisitDocument({ data, documentType, selectedVisita }) {
           <TotalsBox rows={[
             ['Servicios', totalServicios],
             ['Productos ref.', totalProductos],
-            ['Total', grandTotal]
+            ['Total a Pagar', grandTotal]
           ]} />
           <SignatureBlock labels={['Caja', 'Cliente']} />
         </>
@@ -571,16 +568,22 @@ function StageList({ etapas }) {
   );
 }
 
+// La ultima fila es el total final; se acompana del valor en letras como en la factura.
 function TotalsBox({ rows }) {
+  const [, totalFinal] = rows[rows.length - 1];
+
   return (
-    <div className="document-totals">
-      {rows.map(([label, value]) => (
-        <div key={label}>
-          <span>{label}</span>
-          <strong>{formatCurrency(value)}</strong>
-        </div>
-      ))}
-    </div>
+    <>
+      <div className="document-totals">
+        {rows.map(([label, value]) => (
+          <div key={label}>
+            <span>{label}</span>
+            <strong>{formatMonto(value)}</strong>
+          </div>
+        ))}
+      </div>
+      <p className="document-letras"><span>Valor en Letras:</span> {numeroALetras(totalFinal)}</p>
+    </>
   );
 }
 

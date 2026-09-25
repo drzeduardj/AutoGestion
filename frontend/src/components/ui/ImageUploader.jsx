@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ImagePlus, X } from 'lucide-react';
-import { validateImageFile } from '../../utils/validation';
+import { ImagePlus, LoaderCircle, X } from 'lucide-react';
+import { validateImageSize, validateImageType } from '../../utils/validation';
+import { compressImage } from '../../utils/image';
 
 // value: array de { file, descripcion }
 function ImageUploader({ value = [], onChange, max = 6 }) {
   const [error, setError] = useState('');
+  const [processing, setProcessing] = useState(false);
 
   const previews = useMemo(
     () => value.map((item) => ({ ...item, url: URL.createObjectURL(item.file) })),
@@ -15,35 +17,54 @@ function ImageUploader({ value = [], onChange, max = 6 }) {
     previews.forEach((preview) => URL.revokeObjectURL(preview.url));
   }, [previews]);
 
-  const handleSelect = (event) => {
+  const handleSelect = async (event) => {
     const incoming = Array.from(event.target.files || []);
     event.target.value = '';
 
     if (!incoming.length) return;
 
+    const room = max - value.length;
+
+    if (room <= 0) {
+      setError(`Solo puedes agregar ${max} imagen(es) en total`);
+      return;
+    }
+
+    setProcessing(true);
+    setError('');
+
     let nextError = '';
     const accepted = [];
 
-    for (const file of incoming) {
-      const validationError = validateImageFile(file);
+    for (const original of incoming) {
+      const typeError = validateImageType(original);
 
-      if (validationError) {
-        nextError = validationError;
+      if (typeError) {
+        nextError = typeError;
+        continue;
+      }
+
+      // Se reduce antes de medir el peso: en crudo casi cualquier foto de
+      // celular superaria el limite.
+      const file = await compressImage(original);
+      const sizeError = validateImageSize(file);
+
+      if (sizeError) {
+        nextError = sizeError;
         continue;
       }
 
       accepted.push({ file, descripcion: '' });
     }
 
-    const room = max - value.length;
-
     if (accepted.length > room) {
       nextError = `Solo puedes agregar ${max} imagen(es) en total`;
     }
 
+    setProcessing(false);
     setError(nextError);
 
-    if (room <= 0) return;
+    if (!accepted.length) return;
 
     onChange([...value, ...accepted.slice(0, room)]);
   };
@@ -81,13 +102,18 @@ function ImageUploader({ value = [], onChange, max = 6 }) {
         ))}
 
         {!full ? (
-          <label className="image-uploader-add">
-            <ImagePlus size={24} aria-hidden="true" />
-            <span>Agregar</span>
+          <label className={processing ? 'image-uploader-add is-busy' : 'image-uploader-add'}>
+            {processing ? (
+              <LoaderCircle className="spin" size={24} aria-hidden="true" />
+            ) : (
+              <ImagePlus size={24} aria-hidden="true" />
+            )}
+            <span>{processing ? 'Optimizando...' : 'Agregar'}</span>
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp"
               multiple
+              disabled={processing}
               onChange={handleSelect}
             />
           </label>

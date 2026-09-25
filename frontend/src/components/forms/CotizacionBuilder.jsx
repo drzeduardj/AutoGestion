@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Download, Plus, Trash2 } from 'lucide-react';
 import { apiRequest } from '../../api/client';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, formatMonto } from '../../utils/formatters';
+import { numeroALetras } from '../../utils/numeroALetras';
 import SearchSelect from '../ui/SearchSelect';
 import logo from '../../assets/logo.svg';
 
@@ -92,100 +93,152 @@ function CotizacionBuilder({ token, onRequestError, simple = false }) {
     setLineas((c) => [...c, { descripcion: s.nombre, cantidad: 1, precio: Math.round(Number(s.precio_sugerido) || 0) }]);
   };
 
+  // PDF con el mismo formato de la factura (plantilla assets/Factura.xlsx).
   const downloadPdf = async () => {
     const { jsPDF } = await import('jspdf');
     const autoTable = (await import('jspdf-autotable')).default;
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+    const left = 14;
     const right = doc.internal.pageSize.getWidth() - 14;
+    const pageH = doc.internal.pageSize.getHeight();
+    // Pie reservado en cada hoja: nota referencial (ultima hoja) y paginacion
+    const contentBottom = pageH - 26;
+    const ensureSpace = (y, needed) => {
+      if (y + needed <= contentBottom) return y;
+      doc.addPage();
+      return 18;
+    };
+    const ROJO = [178, 22, 22];
+    const ROJO_ETIQUETA = [192, 0, 0];
 
-    // Logo en la esquina superior izquierda (si carga correctamente)
+    // Encabezado: logo y nombre del taller a la izquierda, titulo y fecha a la derecha
     const logoImg = await loadLogoDataUrl();
-    let textX = 14;
+    let brandBottom = 12;
     if (logoImg) {
-      const boxW = 20;
-      const boxH = 16;
+      const boxW = 45;
+      const boxH = 18;
       const ratio = logoImg.w / logoImg.h || 1;
       let w = boxW;
       let h = boxW / ratio;
       if (h > boxH) { h = boxH; w = boxH * ratio; }
-      doc.addImage(logoImg.dataUrl, 'PNG', 14, 8, w, h);
-      textX = 14 + w + 4;
+      doc.addImage(logoImg.dataUrl, 'PNG', left, 8, w, h);
+      brandBottom = 8 + h;
     }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(17);
+    doc.text(TALLER_NOMBRE, left, brandBottom + 5);
 
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(23, 65, 92);
-    doc.text(TALLER_NOMBRE, textX, 16);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90);
-    doc.text('Taller de enderezado y pintura', textX, 21);
+    doc.setFontSize(26); doc.setTextColor(...ROJO);
+    doc.text('Cotizacion', right, 20, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(17);
+    const fechaW = doc.getTextWidth(fecha);
+    doc.text(fecha, right, 28, { align: 'right' });
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(...ROJO_ETIQUETA);
+    doc.text('Fecha:', right - fechaW - 2, 28, { align: 'right' });
 
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(23, 65, 92);
-    doc.text('COTIZACION', right, 14, { align: 'right' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90);
-    doc.text('Fecha: ' + fecha, right, 20, { align: 'right' });
+    let y = Math.max(brandBottom + 9, 32);
+    doc.setDrawColor(31); doc.setLineWidth(0.6); doc.line(left, y, right, y);
 
-    doc.setDrawColor(23, 65, 92); doc.setLineWidth(0.6); doc.line(14, 26, right, 26);
+    // Datos del cliente / vehiculo: etiqueta roja + valor
+    const campo = (label, value, x, fy, labelW = 24) => {
+      doc.setFont('helvetica', 'bold'); doc.setTextColor(...ROJO_ETIQUETA);
+      doc.text(label, x, fy);
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(17);
+      doc.text(value || '-', x + labelW, fy);
+    };
 
-    doc.setFontSize(10); doc.setTextColor(15);
-    let tableStartY = 46;
-
+    doc.setFontSize(10);
+    y += 7;
+    const col2 = 125;
     if (simple) {
-      let iy = 34;
-      const col2 = 110;
-      doc.text('Cliente: ' + (cliente || '-'), 14, iy);
-      doc.text('Telefono: ' + (telefono || '-'), col2, iy);
-      iy += 5.5;
-      doc.text('Email: ' + (email || '-'), 14, iy);
-      iy += 8;
-      doc.setFont('helvetica', 'bold'); doc.text('Datos del vehiculo', 14, iy); doc.setFont('helvetica', 'normal');
-      iy += 5.5;
-      doc.text(`Marca: ${marca || '-'}     Modelo: ${modelo || '-'}     Anio: ${anio || '-'}`, 14, iy);
-      iy += 5.5;
-      doc.text(`Color: ${color || '-'}     VIN: ${vin || '-'}`, 14, iy);
-      tableStartY = iy + 8;
+      campo('Nombre', cliente, left, y); campo('Marca', marca, col2, y, 18);
+      campo('Telefono', telefono, left, y + 5.5); campo('Modelo', modelo, col2, y + 5.5, 18);
+      campo('Email', email, left, y + 11); campo('Anio', anio, col2, y + 11, 18);
+      campo('Color', color, col2, y + 16.5, 18);
+      campo('VIN', vin, col2, y + 22, 18);
+      y += 26;
     } else {
-      doc.text('Cliente: ' + (cliente || '-'), 14, 35);
-      doc.text('Vehiculo: ' + (vehiculo || '-'), 14, 41);
+      campo('Nombre', cliente, left, y);
+      campo('Vehiculo', vehiculo, left, y + 5.5);
+      y += 9.5;
     }
+    doc.line(left, y, right, y);
 
     const baseStyles = {
-      styles: { textColor: 20, lineColor: [70, 70, 70], lineWidth: 0.2, fontSize: 10, cellPadding: 2.5 },
-      headStyles: { fillColor: [225, 233, 238], textColor: 15, fontStyle: 'bold', lineColor: [70, 70, 70], lineWidth: 0.2 },
-      theme: 'grid',
-      startY: tableStartY
+      styles: { textColor: 17, lineColor: [227, 196, 196], lineWidth: { bottom: 0.2 }, fontSize: 10, cellPadding: 2.5 },
+      headStyles: { fillColor: ROJO, textColor: 255, fontStyle: 'bold' },
+      theme: 'plain',
+      startY: y + 5,
+      margin: { left, right: 14, top: 18, bottom: pageH - contentBottom }
     };
 
     if (simple) {
       autoTable(doc, {
         ...baseStyles,
-        head: [['Detalle', 'Total']],
-        body: lineas.map((l) => [l.descripcion || 'Sin detalle', formatCurrency(l.precio)]),
+        head: [['Descripcion', { content: 'Total', styles: { halign: 'right' } }]],
+        body: lineas.map((l) => [l.descripcion || 'Sin detalle', formatMonto(l.precio)]),
         columnStyles: { 1: { halign: 'right', cellWidth: 45 } }
       });
     } else {
       autoTable(doc, {
         ...baseStyles,
-        head: [['Descripcion', 'Cant.', 'Precio', 'Subtotal']],
+        head: [[
+          { content: 'Cant.', styles: { halign: 'center' } },
+          'Descripcion',
+          { content: 'Precio por unidad', styles: { halign: 'right' } },
+          { content: 'Total', styles: { halign: 'right' } }
+        ]],
         body: lineas.map((l) => [
-          l.descripcion || 'Sin descripcion',
           String(Number(l.cantidad) || 0),
-          formatCurrency(l.precio),
-          formatCurrency(lineTotal(l))
+          l.descripcion || 'Sin descripcion',
+          formatMonto(l.precio),
+          formatMonto(lineTotal(l))
         ]),
-        columnStyles: { 1: { halign: 'right', cellWidth: 20 }, 2: { halign: 'right', cellWidth: 30 }, 3: { halign: 'right', cellWidth: 32 } }
+        columnStyles: { 0: { halign: 'center', cellWidth: 16 }, 2: { halign: 'right', cellWidth: 38 }, 3: { halign: 'right', cellWidth: 34 } }
       });
     }
 
-    let y = doc.lastAutoTable.finalY + 8;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(23, 65, 92);
-    doc.text('Total: ' + formatCurrency(total), right, y, { align: 'right' });
+    // Total a pagar + valor en letras se mantienen juntos en la misma hoja
+    y = ensureSpace(doc.lastAutoTable.finalY + 6, 32);
+    doc.setDrawColor(31); doc.setLineWidth(0.5); doc.line(right - 70, y, right, y);
+    y += 6;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(17);
+    doc.text('Total a Pagar', right - 70, y);
+    doc.text(formatMonto(total), right, y, { align: 'right' });
 
-    y += 10;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(90);
+    // Valor en letras
+    y += 11;
+    doc.setDrawColor(208); doc.setLineWidth(0.2); doc.line(left, y - 5, right, y - 5);
+    doc.setFontSize(10); doc.setTextColor(...ROJO_ETIQUETA);
+    doc.text('Valor en Letras:', left, y);
+    const letrasX = left + doc.getTextWidth('Valor en Letras:') + 2;
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(17);
+    const letras = doc.splitTextToSize(numeroALetras(total), right - letrasX);
+    doc.text(letras, letrasX, y);
+    y += (letras.length - 1) * 4.5 + 3;
+    doc.line(left, y, right, y);
+
+    y += 8;
+    doc.setFontSize(9); doc.setTextColor(60);
     if (observaciones) {
-      const wrapped = doc.splitTextToSize(observaciones, right - 14);
-      doc.text(wrapped, 14, y);
-      y += wrapped.length * 4 + 2;
+      const wrapped = doc.splitTextToSize(observaciones, right - left);
+      wrapped.forEach((linea) => {
+        y = ensureSpace(y, 4.5);
+        doc.text(linea, left, y);
+        y += 4.5;
+      });
     }
-    doc.text('Cotizacion referencial, sujeta a revision. Los precios pueden variar segun el trabajo real.', 14, y);
+
+    // Pie de cada hoja: la nota va al fondo de la ultima hoja y todas llevan "Pagina x / y"
+    const totalPages = doc.getNumberOfPages();
+    for (let page = 1; page <= totalPages; page += 1) {
+      doc.setPage(page);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(90);
+      if (page === totalPages) {
+        doc.setDrawColor(208); doc.setLineWidth(0.2); doc.line(left, pageH - 22, right, pageH - 22);
+        doc.text('Cotizacion referencial, sujeta a revision. Los precios pueden variar segun el trabajo real.', left, pageH - 17);
+      }
+      doc.text(`Pagina ${page} / ${totalPages}`, (left + right) / 2, pageH - 9, { align: 'center' });
+    }
 
     const nombre = (cliente || 'cotizacion').replace(/[^\w\d]+/g, '_');
     doc.save(`Cotizacion_${nombre}.pdf`);
@@ -327,55 +380,57 @@ function CotizacionBuilder({ token, onRequestError, simple = false }) {
 }
 
 function CotizacionDoc({ simple, fecha, datos, lineas, total, observaciones }) {
-  const dato = (value) => value || 'Sin dato';
+  const dato = (value) => value || '—';
 
   return (
-    <article className="factura-doc cotizacion-doc">
+    <article className="factura-doc comprobante-doc">
       <header className="factura-doc-header">
         <div className="factura-doc-brand">
           <img src={logo} alt={TALLER_NOMBRE} />
-          <div>
-            <h1>{TALLER_NOMBRE}</h1>
-            <p>Taller de enderezado y pintura</p>
-          </div>
+          <h1>{TALLER_NOMBRE}</h1>
         </div>
         <div className="factura-doc-meta">
-          <strong>COTIZACION</strong>
-          <small>Fecha: {fecha}</small>
+          <strong>Cotizacion</strong>
+          <div><span>Fecha:</span> {fecha}</div>
         </div>
       </header>
 
-      {simple ? (
-        <div className="factura-doc-info cotizacion-doc-info">
-          <div><span>Cliente</span><strong>{dato(datos.cliente)}</strong></div>
-          <div><span>Telefono</span><strong>{dato(datos.telefono)}</strong></div>
-          <div><span>Email</span><strong>{dato(datos.email)}</strong></div>
-          <div><span>Marca</span><strong>{dato(datos.marca)}</strong></div>
-          <div><span>Modelo</span><strong>{dato(datos.modelo)}</strong></div>
-          <div><span>Ano</span><strong>{dato(datos.anio)}</strong></div>
-          <div><span>Color</span><strong>{dato(datos.color)}</strong></div>
-          <div><span>VIN</span><strong>{dato(datos.vin)}</strong></div>
-        </div>
-      ) : (
-        <div className="factura-doc-info">
-          <div><span>Cliente</span><strong>{dato(datos.cliente)}</strong></div>
-          <div><span>Vehiculo</span><strong>{dato(datos.vehiculo)}</strong></div>
-        </div>
-      )}
+      <div className="factura-doc-info">
+        <dl>
+          <div><dt>Nombre</dt><dd>{dato(datos.cliente)}</dd></div>
+          {simple ? (
+            <>
+              <div><dt>Telefono</dt><dd>{dato(datos.telefono)}</dd></div>
+              <div><dt>Email</dt><dd>{dato(datos.email)}</dd></div>
+            </>
+          ) : (
+            <div><dt>Vehiculo</dt><dd>{dato(datos.vehiculo)}</dd></div>
+          )}
+        </dl>
+        {simple ? (
+          <dl className="factura-doc-info-side">
+            <div><dt>Marca</dt><dd>{dato(datos.marca)}</dd></div>
+            <div><dt>Modelo</dt><dd>{dato(datos.modelo)}</dd></div>
+            <div><dt>Ano</dt><dd>{dato(datos.anio)}</dd></div>
+            <div><dt>Color</dt><dd>{dato(datos.color)}</dd></div>
+            <div><dt>VIN</dt><dd>{dato(datos.vin)}</dd></div>
+          </dl>
+        ) : null}
+      </div>
 
       <table className="factura-doc-table">
         <thead>
           {simple ? (
             <tr>
-              <th>Detalle</th>
+              <th>Descripcion</th>
               <th className="num">Total</th>
             </tr>
           ) : (
             <tr>
+              <th className="center">Cant.</th>
               <th>Descripcion</th>
-              <th className="num">Cant.</th>
-              <th className="num">Precio</th>
-              <th className="num">Subtotal</th>
+              <th className="num">Precio por unidad</th>
+              <th className="num">Total</th>
             </tr>
           )}
         </thead>
@@ -384,14 +439,14 @@ function CotizacionDoc({ simple, fecha, datos, lineas, total, observaciones }) {
             simple ? (
               <tr key={index}>
                 <td>{linea.descripcion || 'Sin detalle'}</td>
-                <td className="num">{formatCurrency(linea.precio)}</td>
+                <td className="num">{formatMonto(linea.precio)}</td>
               </tr>
             ) : (
               <tr key={index}>
+                <td className="center">{Number(linea.cantidad)}</td>
                 <td>{linea.descripcion || 'Sin descripcion'}</td>
-                <td className="num">{Number(linea.cantidad)}</td>
-                <td className="num">{formatCurrency(linea.precio)}</td>
-                <td className="num">{formatCurrency(lineTotal(linea))}</td>
+                <td className="num">{formatMonto(linea.precio)}</td>
+                <td className="num">{formatMonto(lineTotal(linea))}</td>
               </tr>
             )
           )) : (
@@ -401,11 +456,13 @@ function CotizacionDoc({ simple, fecha, datos, lineas, total, observaciones }) {
       </table>
 
       <div className="factura-doc-totals">
-        <div className="factura-doc-total-final"><span>Total</span><span>{formatCurrency(total)}</span></div>
+        <div className="factura-doc-total-final"><span>Total a Pagar</span><span>{formatMonto(total)}</span></div>
       </div>
 
+      <p className="factura-doc-letras"><span>Valor en Letras:</span> {numeroALetras(total)}</p>
+
       {observaciones ? <p className="factura-doc-note">{observaciones}</p> : null}
-      <p className="factura-doc-note">Cotizacion referencial, sujeta a revision. Los precios pueden variar segun el trabajo real.</p>
+      <p className="factura-doc-footer">Cotizacion referencial, sujeta a revision. Los precios pueden variar segun el trabajo real.</p>
     </article>
   );
 }

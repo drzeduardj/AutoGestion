@@ -16,3 +16,4 @@ backend/uploads/**/*.png
 backend/uploads/**/*.webp
 
 .vercel
+backend/.env.neon

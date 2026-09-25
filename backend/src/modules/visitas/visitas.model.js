@@ -674,6 +674,11 @@ const updateEtapa = async (visitaId, etapaId, { estado, observaciones, usuarioId
   return result;
 };
 
+const tieneFactura = async (visitaId) => {
+  const result = await query('SELECT EXISTS (SELECT 1 FROM facturas WHERE visita_id = $1) AS tiene', [visitaId]);
+  return result.rows[0].tiene;
+};
+
 module.exports = {
   list,
   listActivas,
@@ -696,5 +701,6 @@ module.exports = {
   getEtapas,
   getProgreso,
   findEtapaById,
-  updateEtapa
+  updateEtapa,
+  tieneFactura
 };

@@ -372,6 +372,11 @@ button {
   color: #265c7b;
 }
 
+.image-uploader-add.is-busy {
+  cursor: default;
+  border-style: solid;
+}
+
 .image-uploader-add input {
   display: none;
 }
@@ -523,6 +528,29 @@ button {
   justify-content: center;
 }
 
+.timeline-card-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.timeline-card-actions .primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.timeline-factura-hint {
+  grid-column: 1 / -1;
+  color: #657484;
+  font-size: 12.5px;
+}
+
+@media (max-width: 620px) {
+  .timeline-card-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
 .factura-doc {
   color: #1f2a33;
   font-size: 12.5px;
@@ -530,6 +558,8 @@ button {
   width: 100%;
   max-width: 720px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .factura-doc-header {
@@ -670,7 +700,8 @@ button {
 .factura-doc-signs {
   display: flex;
   gap: 48px;
-  margin-top: 42px;
+  margin-top: auto;
+  padding-top: 42px;
 }
 
 .factura-doc-signs div {
@@ -684,6 +715,121 @@ button {
 
 .factura-print-portal {
   display: none;
+}
+
+/* Comprobante interno: formato de assets/Factura.xlsx */
+.comprobante-doc {
+  color: #111111;
+}
+
+.comprobante-doc .factura-doc-header {
+  align-items: flex-end;
+  border-bottom: 2px solid #1f1f1f;
+}
+
+.comprobante-doc .factura-doc-brand {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.comprobante-doc .factura-doc-brand img {
+  height: 58px;
+  max-width: 180px;
+}
+
+.comprobante-doc .factura-doc-brand h1 {
+  font-size: 15px;
+  color: #111111;
+}
+
+.comprobante-doc .factura-doc-meta {
+  gap: 6px;
+}
+
+.comprobante-doc .factura-doc-meta strong {
+  font-size: 32px;
+  line-height: 1;
+  color: #b21616;
+  letter-spacing: 0;
+}
+
+.comprobante-doc .factura-doc-meta span,
+.comprobante-doc dt,
+.comprobante-doc .factura-doc-letras span {
+  color: #c00000;
+  font-weight: 700;
+}
+
+.comprobante-doc .factura-doc-info {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #1f1f1f;
+}
+
+.comprobante-doc dl {
+  margin: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.comprobante-doc dl > div {
+  display: flex;
+  gap: 10px;
+}
+
+.comprobante-doc dt {
+  min-width: 78px;
+}
+
+.comprobante-doc dd {
+  margin: 0;
+}
+
+.comprobante-doc .factura-doc-info-side dt {
+  min-width: 0;
+}
+
+.comprobante-doc .factura-doc-table th {
+  background: #b21616;
+  color: #ffffff;
+  border-bottom: 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.comprobante-doc .factura-doc-table td {
+  border-bottom: 1px solid #e3c4c4;
+}
+
+.comprobante-doc .factura-doc-table .center {
+  text-align: center;
+  width: 60px;
+}
+
+.comprobante-doc .factura-doc-totals > div {
+  color: #333333;
+}
+
+.comprobante-doc .factura-doc-total-final {
+  border-top-color: #1f1f1f;
+  color: #111111 !important;
+}
+
+.comprobante-doc .factura-doc-letras {
+  margin: 14px 0 0;
+  padding: 8px 0;
+  border-top: 1px solid #d0d0d0;
+  border-bottom: 1px solid #d0d0d0;
+}
+
+.comprobante-doc .factura-doc-footer {
+  margin: 18px 0 0;
+  text-align: center;
+  font-size: 10.5px;
+  color: #777777;
 }
 
 .cotizacion-builder {
@@ -708,10 +854,6 @@ button {
   cursor: default;
 }
 
-.cotizacion-doc-info {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
 .cotizacion-preview {
   margin-top: 6px;
   border-top: 1px dashed #cdd8e0;
@@ -724,37 +866,6 @@ button {
   color: #657484;
 }
 
-/* Cotizacion tipo voucher: filas y columnas con borde, texto negro */
-.cotizacion-doc {
-  color: #111111;
-  border: 1px solid #333333;
-  padding: 16px;
-  border-radius: 4px;
-}
-
-.cotizacion-doc .factura-doc-info span {
-  color: #333333;
-}
-
-.cotizacion-doc .factura-doc-info strong {
-  color: #000000;
-}
-
-.cotizacion-doc .factura-doc-table th,
-.cotizacion-doc .factura-doc-table td {
-  border: 1px solid #333333;
-  color: #000000;
-}
-
-.cotizacion-doc .factura-doc-table th {
-  background: #e1e9ee;
-  color: #000000;
-}
-
-.cotizacion-doc .factura-doc-note {
-  color: #333333;
-}
-
 @media print {
   body.printing-factura #root {
     display: none !important;
@@ -762,13 +873,27 @@ button {
 
   body.printing-factura .factura-print-portal {
     display: block !important;
-    padding: 4mm;
+    padding: 0;
   }
 }
 
 .facturacion-shell {
   display: grid;
   gap: 14px;
+}
+
+/* Vista previa como hoja carta: aunque haya pocos datos se ve la hoja completa */
+.report-preview .print-document,
+.report-preview .factura-doc,
+.facturacion-shell > .factura-doc {
+  box-sizing: border-box;
+  max-width: 816px;
+  min-height: 1056px;
+  padding: 44px 46px;
+  border: 1px solid #d5dbe1;
+  border-radius: 2px;
+  background: #ffffff;
+  box-shadow: 0 2px 10px rgba(20, 30, 40, 0.08);
 }
 
 .facturacion-cliente {
@@ -1913,8 +2038,8 @@ td {
 .print-document {
   max-width: 820px;
   margin: 0 auto;
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   padding: 26px;
   border: 1px solid #dce3ea;
@@ -1923,6 +2048,7 @@ td {
   background: #ffffff;
 }
 
+/* Documentos imprimibles: mismo formato que la factura (assets/Factura.xlsx) */
 .document-header,
 .document-info-grid,
 .document-signatures,
@@ -1933,21 +2059,21 @@ td {
 
 .document-header {
   grid-template-columns: 1fr auto;
-  align-items: start;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #17202a;
+  align-items: end;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #1f1f1f;
 }
 
 .document-brand {
-  display: flex;
-  align-items: center;
-  gap: 14px;
+  display: grid;
+  justify-items: start;
+  gap: 4px;
 }
 
 .document-logo {
-  height: 52px;
+  height: 58px;
   width: auto;
-  max-width: 120px;
+  max-width: 180px;
   object-fit: contain;
   flex-shrink: 0;
   -webkit-print-color-adjust: exact;
@@ -1962,7 +2088,8 @@ td {
 }
 
 .document-header h2 {
-  font-size: 22px;
+  font-size: 15px;
+  color: #111111;
 }
 
 .document-header > div:last-child {
@@ -1972,37 +2099,47 @@ td {
 }
 
 .document-header strong {
-  font-size: 18px;
+  font-size: 28px;
+  line-height: 1.05;
+  color: #b21616;
+  max-width: 360px;
 }
 
 .document-header span,
-.document-header small,
 .document-info-grid span,
+.document-letras span,
+.document-text-rows strong {
+  color: #c00000;
+  font-weight: 700;
+}
+
 .document-note {
-  color: #657484;
+  color: #5c5c5c;
 }
 
 .document-info-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 24px;
-  row-gap: 8px;
+  row-gap: 3px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #1f1f1f;
 }
 
 .document-info-grid div {
-  display: grid;
-  gap: 1px;
+  display: flex;
+  gap: 10px;
   padding: 0;
 }
 
 .document-info-grid span {
-  font-size: 10.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  min-width: 92px;
+  font-size: 13px;
 }
 
 .document-info-grid strong {
   font-size: 13px;
+  font-weight: 400;
+  color: #111111;
 }
 
 .document-section {
@@ -2012,25 +2149,43 @@ td {
 
 .document-section h3 {
   font-size: 14px;
-  border-bottom: 1px solid #dce3ea;
+  color: #b21616;
+  border-bottom: 1px solid #1f1f1f;
   padding-bottom: 4px;
 }
 
 .document-table {
   min-width: 0;
-  border: 1px solid #dce3ea;
+  border: 0;
+  border-collapse: collapse;
 }
 
 .document-table th,
 .document-table td {
   height: auto;
   padding: 6px 9px;
-  border-bottom: 1px solid #edf1f5;
+  border-bottom: 1px solid #e3c4c4;
+  color: #111111;
+}
+
+.document-table th {
+  background: #b21616;
+  color: #ffffff;
+  border-bottom: 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.document-table .num {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .document-table tfoot td {
   font-weight: 800;
-  background: #f7f9fb;
+  background: transparent;
+  border-top: 1px solid #1f1f1f;
+  border-bottom: 0;
 }
 
 .document-text-rows {
@@ -2056,14 +2211,14 @@ td {
   display: grid;
   gap: 3px;
   padding: 7px 8px;
-  border: 1px solid #dce3ea;
-  border-radius: 6px;
-  background: #f7f9fb;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  background: #ffffff;
 }
 
 .document-stage-list span,
 .document-checklist-grid span {
-  color: #657484;
+  color: #5c5c5c;
   font-size: 12px;
   font-weight: 700;
 }
@@ -2078,14 +2233,30 @@ td {
   display: flex;
   justify-content: space-between;
   gap: 18px;
-  padding: 5px 0;
-  border-bottom: 1px solid #dce3ea;
+  padding: 4px 0;
+  color: #333333;
+}
+
+.document-totals div:last-child {
+  border-top: 2px solid #1f1f1f;
+  margin-top: 4px;
+  padding-top: 7px;
+  font-size: 15px;
+  color: #111111;
+}
+
+.document-letras {
+  margin: 0;
+  padding: 8px 0;
+  border-top: 1px solid #d0d0d0;
+  border-bottom: 1px solid #d0d0d0;
 }
 
 .document-signatures {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 32px;
-  margin-top: 20px;
+  margin-top: auto;
+  padding-top: 20px;
 }
 
 .document-signatures div {
@@ -2095,8 +2266,13 @@ td {
 }
 
 .document-signatures span {
-  border-bottom: 1px solid #17202a;
+  border-bottom: 1px solid #1f1f1f;
   min-height: 26px;
+}
+
+.document-signatures strong {
+  font-weight: 400;
+  color: #333333;
 }
 
 .table-action {
@@ -2671,6 +2847,323 @@ td {
   display: none;
 }
 
+/* Panel mecanico: recorrido de estados + wizard por pasos */
+.estado-flow {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #dce3ea;
+  border-radius: 8px;
+  background: #f7f9fb;
+}
+
+.estado-track {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.estado-track-step {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.estado-track-step::before {
+  content: "";
+  position: absolute;
+  top: 11px;
+  left: -50%;
+  width: 100%;
+  height: 3px;
+  background: #dce3ea;
+}
+
+.estado-track-step:first-child::before {
+  display: none;
+}
+
+.estado-track-done::before,
+.estado-track-current::before {
+  background: #265c7b;
+}
+
+.estado-track-dot {
+  position: relative;
+  z-index: 1;
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  border: 2px solid #ccd6df;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #ffffff;
+}
+
+.estado-track-done .estado-track-dot {
+  border-color: #265c7b;
+  background: #265c7b;
+}
+
+.estado-track-current .estado-track-dot {
+  border-color: #265c7b;
+  box-shadow: 0 0 0 4px rgba(38, 92, 123, 0.18);
+}
+
+.estado-track-current:not(.estado-track-paused) .estado-track-dot::after {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #265c7b;
+}
+
+.estado-track-paused .estado-track-dot {
+  border-color: #b7791f;
+  color: #ffffff;
+  background: #b7791f;
+  box-shadow: 0 0 0 4px rgba(183, 121, 31, 0.2);
+}
+
+.estado-track-label {
+  font-size: 12px;
+  line-height: 1.25;
+  color: #8190a0;
+}
+
+.estado-track-done .estado-track-label {
+  color: #263745;
+}
+
+.estado-track-current .estado-track-label {
+  color: #265c7b;
+  font-weight: 700;
+}
+
+.estado-track-paused .estado-track-label {
+  color: #8a5a12;
+}
+
+.estado-flow-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.estado-flow-current {
+  display: grid;
+  gap: 2px;
+}
+
+.estado-flow-current span {
+  color: #657484;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.estado-flow-current strong {
+  font-size: 18px;
+}
+
+.estado-flow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.estado-flow-actions .primary-button,
+.estado-flow-actions .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.estado-flow-other {
+  height: 42px;
+  border: 1px solid #ccd6df;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: #263745;
+  background: #ffffff;
+}
+
+.estado-flow-feedback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #b8dfc8;
+  border-radius: 6px;
+  color: #1f603c;
+  background: #effaf3;
+  font-weight: 600;
+}
+
+.estado-flow-feedback small {
+  margin-left: auto;
+  color: #4d7a5f;
+  font-weight: 400;
+}
+
+.wizard-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.wizard-step {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid #dce3ea;
+  border-radius: 8px;
+  color: #506070;
+  background: #ffffff;
+  text-align: left;
+}
+
+.wizard-step:hover {
+  border-color: #9cc4d7;
+}
+
+.wizard-step-number {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #506070;
+  background: #edf1f5;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.wizard-step-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.wizard-step-done .wizard-step-number {
+  color: #ffffff;
+  background: #2f8a57;
+}
+
+.wizard-step-active {
+  border-color: #265c7b;
+  color: #265c7b;
+  box-shadow: inset 0 -3px 0 #265c7b;
+}
+
+.wizard-step-active .wizard-step-number {
+  color: #ffffff;
+  background: #265c7b;
+}
+
+.wizard-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid #edf1f5;
+}
+
+.wizard-nav .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wizard-nav .secondary-button:last-child {
+  margin-left: auto;
+}
+
+.save-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.save-status {
+  color: #2f8a57;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.save-status-pending {
+  color: #b7791f;
+}
+
+.finish-checklist {
+  display: grid;
+  gap: 8px;
+}
+
+.finish-check {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #edf1f5;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.finish-check span {
+  color: #657484;
+  font-size: 13px;
+}
+
+.finish-check-ok svg {
+  color: #2f8a57;
+}
+
+.finish-check-warn svg {
+  color: #b7791f;
+}
+
+.finish-warning {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #f0dca8;
+  border-radius: 8px;
+  color: #7a6010;
+  background: #fbf3df;
+}
+
+.finish-warning svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.finish-warning div {
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.finish-button {
+  min-height: 52px;
+  justify-content: center;
+  font-size: 16px;
+}
+
 @media (max-width: 980px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -2809,6 +3302,41 @@ td {
 }
 
 @media (max-width: 620px) {
+  .estado-track-label {
+    font-size: 10.5px;
+  }
+
+  .estado-flow-actions,
+  .estado-flow-actions > * {
+    width: 100%;
+  }
+
+  .estado-flow-actions .primary-button,
+  .estado-flow-actions .secondary-button {
+    justify-content: center;
+  }
+
+  .wizard-steps {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .wizard-step {
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 4px;
+    text-align: center;
+  }
+
+  .wizard-step-label svg {
+    display: none;
+  }
+
+  .wizard-step-label {
+    font-size: 12px;
+  }
+
   .main-area {
     padding: 14px;
   }
@@ -2927,7 +3455,34 @@ td {
 
 @media print {
   @page {
-    margin: 14mm;
+    size: letter;
+    margin: 12mm 12mm 16mm;
+
+    @bottom-center {
+      content: "Página " counter(page) " / " counter(pages);
+      font-family: Arial, sans-serif;
+      font-size: 9pt;
+      color: #555555;
+    }
+  }
+
+  /* Alto util de la hoja: 279.4mm - margenes (12mm + 16mm), con holgura para no generar una hoja en blanco */
+  .print-document,
+  .factura-doc {
+    box-sizing: border-box;
+    max-width: none !important;
+    min-height: 250mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .factura-doc-table tr,
+  .factura-doc-signs,
+  .factura-doc-totals {
+    page-break-inside: avoid;
   }
 
   body {

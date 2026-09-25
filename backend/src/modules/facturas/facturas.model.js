@@ -4,7 +4,9 @@ const FACTURA_SELECT = `
   f.id,
   f.visita_id,
   f.tipo,
-  f.cliente_nombre,
+  COALESCE(c.nombre, f.cliente_nombre) AS cliente_nombre,
+  c.direccion AS cliente_direccion,
+  c.telefono AS cliente_telefono,
   f.numero,
   f.subtotal_servicios,
   f.subtotal_materiales,
@@ -37,6 +39,8 @@ const findById = async (id) => {
       SELECT ${FACTURA_SELECT}
       FROM facturas f
       LEFT JOIN usuarios u ON u.id = f.emitida_por
+      LEFT JOIN visitas vi ON vi.id = f.visita_id
+      LEFT JOIN clientes c ON c.id = vi.cliente_id
       WHERE f.id = $1
       LIMIT 1
     `,
@@ -56,6 +60,8 @@ const findByVisitaId = async (visitaId) => {
       SELECT ${FACTURA_SELECT}
       FROM facturas f
       LEFT JOIN usuarios u ON u.id = f.emitida_por
+      LEFT JOIN visitas vi ON vi.id = f.visita_id
+      LEFT JOIN clientes c ON c.id = vi.cliente_id
       WHERE f.visita_id = $1
       ORDER BY f.id DESC
       LIMIT 1

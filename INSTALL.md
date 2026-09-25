@@ -44,13 +44,32 @@ Y asegúrate de **incluir manualmente** lo que no viaja en el repositorio:
 
 ## 3. Base de datos
 
-> ⚠️ El repositorio **no contiene un script del esquema base** de la base de datos
-> (solo migraciones incrementales). Por eso la BD se traslada con un **volcado completo
-> (dump) generado desde pgAdmin** en el equipo actual, que incluye estructura, usuarios y datos.
+Elige **una** de las dos opciones:
 
-La base se traslada con un dump hecho en **pgAdmin** y se restaura también desde pgAdmin.
+- **Opción A — Base limpia** (instalación nueva, sin datos previos): se crea la base vacía y
+  las migraciones construyen todo el esquema. Recomendado para arrancar de cero.
+- **Opción B — Trasladar datos existentes**: se restaura un volcado (dump) del equipo actual.
 
-### 3.1 En el equipo ACTUAL (origen) — generar el dump
+### Opción A — Base limpia con migraciones
+
+1. En **pgAdmin**: clic derecho sobre `Databases → Create → Database...`, nómbrala
+   **`taller_sis`** y guarda. (O por consola:
+   `& "C:\Program Files\PostgreSQL\<versión>\bin\createdb.exe" -U postgres taller_sis`.)
+2. Nada más: las tablas se crean en el paso 6 (`npm run setup` ejecuta las migraciones).
+
+Las migraciones (`backend/db/migrations/000` a la última) crean el esquema completo, los roles,
+los servicios y flujos de trabajo base, y dos usuarios iniciales:
+
+| Usuario | Rol | Contraseña |
+|---|---|---|
+| `admin` | Admin | `123456` |
+| `mecanico1` | Mecanico | `123456` |
+
+> ⚠️ **Cambia ambas contraseñas** desde **Admin → Usuarios** tras el primer inicio de sesión.
+
+### Opción B — Trasladar datos con un dump de pgAdmin
+
+#### B.1 En el equipo ACTUAL (origen) — generar el dump
 
 En **pgAdmin**:
 
@@ -60,18 +79,15 @@ En **pgAdmin**:
 4. En **Format** deja **Custom** (recomendado) y pulsa **Backup**.
 5. Copia el archivo generado a la PC del taller (USB / red).
 
-### 3.2 En la PC del taller (destino) — restaurar
-
-En **pgAdmin** del equipo del taller:
+#### B.2 En la PC del taller (destino) — restaurar
 
 1. Clic derecho sobre `Databases → Create → Database...`, nómbrala **`taller_sis`** y guarda.
 2. Clic derecho sobre la base **`taller_sis` → Restore...**
-3. En **Filename** selecciona el archivo del dump que copiaste.
-4. Pulsa **Restore**.
+3. En **Filename** selecciona el archivo del dump que copiaste y pulsa **Restore**.
 
-> El dump ya trae las tablas, los usuarios (incluido el administrador) y los datos existentes.
-> El nombre de la base en destino debe ser **`taller_sis`** (coincide con `DB_NAME` del `.env`);
-> si usas otro nombre, ajústalo en `backend/.env`.
+> El dump trae las tablas, los usuarios con sus contraseñas actuales y los datos existentes.
+> Luego `npm run migrate` (paso 6) solo completa lo que falte: es idempotente.
+> Si usas otro nombre de base, ajústalo en `DB_NAME` de `backend/.env`.
 
 ---
 
@@ -127,7 +143,10 @@ npm run setup
 `npm run setup` ejecuta:
 1. `install:all` — instala dependencias de backend y frontend.
 2. `build` — compila el frontend a `frontend/dist`.
-3. `migrate` — aplica las migraciones (idempotente; seguro aunque la BD ya esté al día tras el restore).
+3. `migrate` — crea/actualiza el esquema de la BD (idempotente: se puede correr las veces que sea).
+
+Debe terminar con `Migraciones aplicadas correctamente.` Si falla con un error de conexión,
+revisa `DB_*` en `backend/.env` y que el servicio de PostgreSQL esté corriendo.
 
 ---
 
@@ -144,8 +163,8 @@ Abre en el navegador:
 http://localhost:4000
 ```
 
-Inicia sesión con el usuario administrador (las credenciales vienen en el volcado de la BD;
-si necesitas otro usuario, créalo desde **Admin → Usuarios** dentro de la app).
+Inicia sesión con el administrador: `admin` / `123456` si usaste la **opción A** (base limpia),
+o con las credenciales de siempre si restauraste un dump (**opción B**).
 
 Detén la prueba con `Ctrl + C` antes de pasar al servicio.
 
@@ -153,46 +172,79 @@ Detén la prueba con `Ctrl + C` antes de pasar al servicio.
 
 ## 8. Dejarlo como servicio que arranca con la PC (NSSM)
 
-Para que el backend (y por tanto la web app) inicie solo al encender la PC, en segundo plano:
+Así el backend (y con él la web app) inicia solo al encender la PC, sin sesión iniciada y
+sin ventana abierta, y se reinicia si se cae.
+
+### 8.1 Instalar NSSM
+
+1. Descarga el zip desde https://nssm.cc/download (versión 2.24 o la *pre-release* 2.24-101).
+2. Descomprime y copia `win64\nssm.exe` a `C:\nssm\nssm.exe`.
+3. Agrega `C:\nssm` al `PATH` del sistema, o usa la ruta completa `C:\nssm\nssm.exe` en los comandos.
+
+### 8.2 Registrar el servicio
+
+Abre **PowerShell como Administrador** (clic derecho → *Ejecutar como administrador*):
 
 ```powershell
-# 1. Averigua el nombre exacto del servicio de PostgreSQL
-Get-Service *postgres*   # ej: postgresql-x64-16
+# 1. Datos que necesitas
+Get-Service *postgres*          # nombre del servicio de PostgreSQL, ej: postgresql-x64-17
+(Get-Command node).Source        # ruta de node.exe, normalmente C:\Program Files\nodejs\node.exe
 
-# 2. Crea la carpeta de logs
+# 2. Carpeta de logs
 New-Item -ItemType Directory -Force "C:\AutoGestion\logs"
 
-# 3. Registra el servicio apuntando a node.exe + server.js
-nssm install AutoGestion "C:\Program Files\nodejs\node.exe" "C:\AutoGestion\backend\src\server.js"
+# 3. Crear el servicio: node.exe ejecutando el server del backend
+nssm install AutoGestion "C:\Program Files\nodejs\node.exe" "src\server.js"
 nssm set AutoGestion AppDirectory "C:\AutoGestion\backend"
 nssm set AutoGestion DisplayName "AutoGestion Taller"
-nssm set AutoGestion Description "API + web app del taller automotriz"
-nssm set AutoGestion Start SERVICE_AUTO_START
+nssm set AutoGestion Description "API + web app del taller automotriz (puerto 4000)"
+nssm set AutoGestion AppEnvironmentExtra NODE_ENV=production
 
-# 4. Que dependa de PostgreSQL (usa el nombre del paso 1)
-nssm set AutoGestion DependOnService postgresql-x64-16
+# 4. Arranque automático, esperando a PostgreSQL (usa el nombre del paso 1)
+nssm set AutoGestion Start SERVICE_DELAYED_AUTO_START
+nssm set AutoGestion DependOnService postgresql-x64-17
 
-# 5. Logs
+# 5. Si el proceso se cae, reiniciarlo a los 5 s
+nssm set AutoGestion AppExit Default Restart
+nssm set AutoGestion AppRestartDelay 5000
+
+# 6. Logs con rotación (nuevo archivo al superar ~10 MB)
 nssm set AutoGestion AppStdout "C:\AutoGestion\logs\out.log"
 nssm set AutoGestion AppStderr "C:\AutoGestion\logs\err.log"
+nssm set AutoGestion AppRotateFiles 1
+nssm set AutoGestion AppRotateOnline 1
+nssm set AutoGestion AppRotateBytes 10485760
 
-# 6. Arrancar
+# 7. Arrancar y comprobar
 nssm start AutoGestion
+nssm status AutoGestion          # debe decir SERVICE_RUNNING
 ```
 
-Comandos útiles del servicio:
+Verifica abriendo `http://localhost:4000`. Luego **reinicia la PC** y confirma que la app
+responde sin haber hecho nada: esa es la prueba real del autostart.
+
+Notas:
+
+- `AppDirectory` debe ser la carpeta `backend`: desde ahí se lee `backend\.env`.
+- Se apunta directo a `node.exe` (no a `npm`) porque `npm` es un `.cmd` y da problemas como servicio.
+- El servicio **solo arranca el backend**, que ya sirve el frontend compilado (`frontend\dist`).
+  No recompila en cada arranque; eso se hace en el paso 6 o al actualizar (paso 11).
+- `NODE_ENV=production` evita que los errores internos se muestren con detalle al usuario.
+- `SERVICE_DELAYED_AUTO_START` le da unos segundos extra a PostgreSQL al encender la PC.
+
+### 8.3 Comandos útiles
 
 ```powershell
-nssm restart AutoGestion
-nssm stop AutoGestion
 nssm status AutoGestion
-nssm edit AutoGestion      # editor gráfico
-nssm remove AutoGestion confirm   # eliminar el servicio
+nssm restart AutoGestion         # tras cambiar backend\.env
+nssm stop AutoGestion
+nssm start AutoGestion
+nssm edit AutoGestion            # editor gráfico de la configuración
+nssm remove AutoGestion confirm  # eliminar el servicio
+Get-Content C:\AutoGestion\logs\err.log -Tail 50   # ver últimos errores
 ```
 
-> Se apunta directo a `node.exe` (no a `npm`) porque `npm` es un `.cmd` y da problemas como servicio.
-> El servicio **solo arranca el backend**, que ya sirve el frontend compilado. No recompila en cada
-> arranque (eso lo hiciste en el paso 6).
+También aparece en `services.msc` como **AutoGestion Taller**.
 
 ---
 

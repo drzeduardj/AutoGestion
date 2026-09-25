@@ -27,6 +27,17 @@ export const formatCurrency = (value) => {
   }).format(amount);
 };
 
+// Fecha de documentos: 25 de septiembre de 2026
+export const formatFechaLarga = (value) => (value
+  ? new Intl.DateTimeFormat('es-HN', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(value))
+  : 'Sin fecha');
+
+// Montos de documentos (factura/cotizacion): L 1,250.50
+export const formatMonto = (value) => `L ${new Intl.NumberFormat('es-HN', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+}).format(Number(value || 0))}`;
+
 export const vehicleLabel = (row) => {
   const parts = [row.marca, row.modelo].filter(Boolean).join(' ');
   return [row.placa, parts].filter(Boolean).join(' - ') || row.vehiculo || 'Sin dato';

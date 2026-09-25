@@ -202,6 +202,15 @@ const createVisita = async (req, res) => {
   return successResponse(res, 'Visita creada correctamente', await enrichVisita(visitaCreada), 201);
 };
 
+const MENSAJE_ENTREGA_SIN_FACTURA = 'Emite la factura de la visita antes de marcarla como entregada';
+
+// Solo se entrega un vehiculo cuyo trabajo ya fue facturado.
+const entregaSinFactura = async (visitaId, estadoNuevo, estadoActual) => (
+  estadoNuevo === 'Entregado'
+  && estadoActual !== 'Entregado'
+  && !(await visitasModel.tieneFactura(visitaId))
+);
+
 const updateVisita = async (req, res) => {
   const visitaId = Number(req.params.id);
   const payload = buildVisitaPayload(req.body, req.user, true);
@@ -209,6 +218,10 @@ const updateVisita = async (req, res) => {
 
   if (!visitaActual) {
     return errorResponse(res, 'Visita no encontrada', undefined, 404);
+  }
+
+  if (await entregaSinFactura(visitaId, payload.estado, visitaActual.estado)) {
+    return errorResponse(res, MENSAJE_ENTREGA_SIN_FACTURA, undefined, 400);
   }
 
   if (payload.mecanico_asignado_id) {
@@ -255,7 +268,18 @@ const updateVisita = async (req, res) => {
 };
 
 const updateEstado = async (req, res) => {
-  const visita = await visitasModel.updateEstado(Number(req.params.id), {
+  const visitaId = Number(req.params.id);
+  const visitaActual = await visitasModel.findById(visitaId);
+
+  if (!visitaActual) {
+    return errorResponse(res, 'Visita no encontrada', undefined, 404);
+  }
+
+  if (await entregaSinFactura(visitaId, req.body.estado, visitaActual.estado)) {
+    return errorResponse(res, MENSAJE_ENTREGA_SIN_FACTURA, undefined, 400);
+  }
+
+  const visita = await visitasModel.updateEstado(visitaId, {
     estado: req.body.estado,
     observaciones: normalizeNullableString(req.body.observaciones)
   });

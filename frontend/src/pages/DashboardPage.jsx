@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Boxes, Camera, Car, Filter, Receipt, Search, Settings } from 'lucide-react';
+import { AlertTriangle, Boxes, Camera, Car, CircleCheck, Filter, Receipt, Search, Settings } from 'lucide-react';
+import { crudRequest } from '../api/client';
 import carImage from '../assets/car.png';
 import DataTable from '../components/ui/DataTable';
 import EmptyState from '../components/ui/EmptyState';
 import ErrorState from '../components/ui/ErrorState';
 import PhotoGalleryModal from '../components/ui/PhotoGalleryModal';
 import CobroModal from '../components/forms/CobroModal';
+import ConfirmModal from '../components/forms/ConfirmModal';
 import { formatDate, stripAccents, vehicleLabel } from '../utils/formatters';
 
 const normalizeText = (value) => stripAccents(value).toLowerCase();
@@ -27,6 +29,8 @@ function DashboardPage({ data, loading, error, onRefresh, session, showToast, on
   const progresoVisitas = data?.progreso_visitas || [];
   const [gallery, setGallery] = useState(null);
   const [cobroVisitaId, setCobroVisitaId] = useState(null);
+  const [entregaConfirm, setEntregaConfirm] = useState(null);
+  const [entregando, setEntregando] = useState(false);
   const [timelineFilters, setTimelineFilters] = useState({
     search: '',
     flujo: '',
@@ -64,6 +68,35 @@ function DashboardPage({ data, loading, error, onRefresh, session, showToast, on
     });
   }, [progresoVisitas, timelineFilters]);
   const alertasSinAvance = progresoVisitas.filter((visita) => visita.alerta_sin_avance).length;
+
+  const pedirEntrega = (visita, vehicle) => {
+    setEntregaConfirm({
+      title: 'Marcar como entregado',
+      message: `${vehicle} (${visita.cliente || 'sin cliente'}, factura ${visita.factura_numero}) se marcara como Entregado y saldra de la linea de taller. Confirma que el cliente ya recogio el vehiculo.`,
+      visitaId: visita.visita_id
+    });
+  };
+
+  const marcarEntregado = async () => {
+    if (!entregaConfirm) return;
+
+    setEntregando(true);
+    try {
+      await crudRequest({
+        path: `/visitas/${entregaConfirm.visitaId}/estado`,
+        token: session?.token,
+        method: 'PATCH',
+        body: { estado: 'Entregado', observaciones: 'Entregado desde la linea de taller' }
+      });
+      showToast('Vehiculo entregado. Se retiro de la linea de taller.');
+      setEntregaConfirm(null);
+      onRefresh();
+    } catch (err) {
+      showToast(onRequestError?.(err) || err.message, 'danger');
+    } finally {
+      setEntregando(false);
+    }
+  };
 
   if (loading) return <EmptyState text="Cargando dashboard..." />;
   if (error) return <ErrorState text={error} onRetry={onRefresh} />;
@@ -135,6 +168,7 @@ function DashboardPage({ data, loading, error, onRefresh, session, showToast, on
               key={visita.visita_id}
               onOpenGallery={(payload) => setGallery(payload)}
               onOpenCobro={(id) => setCobroVisitaId(id)}
+              onEntregar={pedirEntrega}
             />
           )) : <EmptyState text="Sin vehiculos con esos filtros" />}
         </div>
@@ -166,11 +200,17 @@ function DashboardPage({ data, loading, error, onRefresh, session, showToast, on
           onRequestError={onRequestError}
         />
       ) : null}
+      <ConfirmModal
+        confirm={entregaConfirm}
+        saving={entregando}
+        onCancel={() => setEntregaConfirm(null)}
+        onConfirm={marcarEntregado}
+      />
     </div>
   );
 }
 
-function TimelineCard({ visita, onOpenGallery, onOpenCobro }) {
+function TimelineCard({ visita, onOpenGallery, onOpenCobro, onEntregar }) {
   const etapas = visita.etapas || [];
   const esFinalizado = visita.estado_visita === 'Finalizado';
   const fotosAvance = visita.fotos_avance || [];
@@ -256,10 +296,27 @@ function TimelineCard({ visita, onOpenGallery, onOpenCobro }) {
       </div>
 
       {esFinalizado ? (
-        <button className="secondary-button compact-button timeline-cobro-button" type="button" onClick={() => onOpenCobro(visita.visita_id)}>
-          <Receipt size={16} aria-hidden="true" />
-          Resumen de cobro
-        </button>
+        <div className="timeline-card-actions">
+          <button className="secondary-button compact-button timeline-cobro-button" type="button" onClick={() => onOpenCobro(visita.visita_id)}>
+            <Receipt size={16} aria-hidden="true" />
+            Resumen de cobro
+          </button>
+          <button
+            className="primary-button compact-button timeline-cobro-button"
+            type="button"
+            onClick={() => onEntregar(visita, vehicle)}
+            disabled={!visita.factura_numero}
+            title={visita.factura_numero ? undefined : 'Emite la factura desde "Resumen de cobro" para poder entregar'}
+          >
+            <CircleCheck size={16} aria-hidden="true" />
+            Marcar como entregado
+          </button>
+          <small className="timeline-factura-hint">
+            {visita.factura_numero
+              ? `Facturado: ${visita.factura_numero}`
+              : 'Emite la factura desde "Resumen de cobro" para poder marcarlo como entregado.'}
+          </small>
+        </div>
       ) : null}
     </article>
   );
