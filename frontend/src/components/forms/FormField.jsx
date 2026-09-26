@@ -1,6 +1,6 @@
 import SearchSelect from '../ui/SearchSelect';
 
-function FormField({ field, mode, value, error, onChange }) {
+function FormField({ field, mode, value, error, onChange, onCreate }) {
   const required = Boolean(field.required || (mode === 'create' && field.requiredOnCreate));
   const integerOnly = field.valueType === 'integer';
   const handleInputChange = (event) => {
@@ -43,6 +43,8 @@ function FormField({ field, mode, value, error, onChange }) {
           options={options}
           placeholder={`Buscar ${String(field.label).toLowerCase()}`}
           emptyText={field.emptyText || 'Sin coincidencias'}
+          onCreate={onCreate}
+          createLabel={field.createLabel}
         />
         {error ? <span className="field-error">{error}</span> : null}
       </label>

@@ -277,6 +277,24 @@ button {
   font-size: 14px;
 }
 
+.search-select-create-item {
+  border-top: 1px solid #e3e9ee;
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+.search-select-create {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #265c7b;
+  font-weight: 600;
+}
+
+.search-select-create:hover {
+  background: #eef3f6;
+}
+
 .image-uploader {
   display: grid;
   gap: 8px;
@@ -993,6 +1011,18 @@ button {
   font-size: 13px;
   color: #265c7b;
   font-weight: 600;
+}
+
+.cliente-vehiculos-body {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.cliente-vehiculos-toolbar {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .vehiculo-fotos-step {

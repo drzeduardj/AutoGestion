@@ -26,6 +26,10 @@ const list = async ({ search, estado } = {}) => {
       OR telefono ILIKE $${params.length}
       OR whatsapp ILIKE $${params.length}
       OR email ILIKE $${params.length}
+      OR EXISTS (
+        SELECT 1 FROM vehiculos v
+        WHERE v.cliente_id = clientes.id AND v.placa ILIKE $${params.length}
+      )
     )`);
   }
 
@@ -38,7 +42,13 @@ const list = async ({ search, estado } = {}) => {
 
   const result = await query(
     `
-      SELECT ${CLIENTE_SELECT}
+      SELECT
+        ${CLIENTE_SELECT},
+        (
+          SELECT string_agg(v.placa, ', ' ORDER BY v.placa)
+          FROM vehiculos v
+          WHERE v.cliente_id = clientes.id
+        ) AS placas
       FROM clientes
       ${where}
       ORDER BY fecha_creacion DESC, id DESC

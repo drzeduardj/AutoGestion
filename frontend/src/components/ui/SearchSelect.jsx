@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Search, X } from 'lucide-react';
+import { ChevronDown, Plus, Search, X } from 'lucide-react';
 
 function SearchSelect({
   value,
@@ -7,7 +7,9 @@ function SearchSelect({
   options = [],
   placeholder = 'Seleccionar',
   emptyText = 'Sin coincidencias',
-  disabled = false
+  disabled = false,
+  onCreate,
+  createLabel = 'Crear nuevo'
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -57,6 +59,16 @@ function SearchSelect({
     inputRef.current?.blur();
   };
 
+  // Accion opcional para registrar un elemento que no existe (ej. cliente nuevo),
+  // se le pasa el texto buscado para prellenar el formulario.
+  const createOption = () => {
+    const text = query.trim();
+    setOpen(false);
+    setQuery('');
+    inputRef.current?.blur();
+    onCreate(text);
+  };
+
   const clearSelection = (event) => {
     event.stopPropagation();
     onChange('');
@@ -76,6 +88,9 @@ function SearchSelect({
       if (open && filtered[highlight]) {
         event.preventDefault();
         selectOption(filtered[highlight]);
+      } else if (open && onCreate && !filtered.length) {
+        event.preventDefault();
+        createOption();
       }
     } else if (event.key === 'Escape') {
       setOpen(false);
@@ -134,6 +149,14 @@ function SearchSelect({
           )) : (
             <li className="search-select-empty">{emptyText}</li>
           )}
+          {onCreate ? (
+            <li className="search-select-create-item">
+              <button type="button" className="search-select-option search-select-create" onClick={createOption}>
+                <Plus size={15} aria-hidden="true" />
+                {query.trim() ? `${createLabel}: "${query.trim()}"` : createLabel}
+              </button>
+            </li>
+          ) : null}
         </ul>
       ) : null}
     </div>

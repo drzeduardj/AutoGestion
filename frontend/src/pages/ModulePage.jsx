@@ -1,4 +1,4 @@
-import { Info, PackagePlus, Pencil, Plus, Power, Search } from 'lucide-react';
+import { Car, Info, PackagePlus, Pencil, Plus, Power, Search } from 'lucide-react';
 import { getListForModule, hasRole, moduleConfig } from '../config/moduleConfig';
 import { moduleHints, moduleTitles } from '../routes/modules';
 import { filterRows } from '../utils/formatters';
@@ -18,6 +18,7 @@ function ModulePage({
   onEdit,
   onToggleStatus,
   onStockMovement,
+  onViewVehiculos,
   onRefresh
 }) {
   const config = moduleConfig[moduleKey];
@@ -26,6 +27,7 @@ function ModulePage({
   const canEdit = hasRole(session, config?.editRoles);
   const canStatus = hasRole(session, config?.statusRoles);
   const canStock = Boolean(config?.stockMovements) && hasRole(session, config?.stockRoles);
+  const canVehiculos = Boolean(config?.vehiculosAction && onViewVehiculos);
 
   return (
     <section className="panel">
@@ -60,8 +62,13 @@ function ModulePage({
         <DataTable
           rows={rows}
           columns={config?.columns || []}
-          actions={canEdit || canStatus || canStock ? (row) => (
+          actions={canEdit || canStatus || canStock || canVehiculos ? (row) => (
             <div className="row-actions">
+              {canVehiculos ? (
+                <button className="icon-button table-action" type="button" onClick={() => onViewVehiculos(row)} aria-label="Ver vehiculos" title="Ver vehiculos">
+                  <Car size={17} aria-hidden="true" />
+                </button>
+              ) : null}
               {canEdit ? (
                 <button className="icon-button table-action" type="button" onClick={() => onEdit(moduleKey, row)} aria-label="Editar" title="Editar">
                   <Pencil size={17} aria-hidden="true" />

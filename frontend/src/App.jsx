@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Menu, RefreshCcw } from 'lucide-react';
 import { apiRequest, crudRequest, isForbiddenError, isSessionError } from './api/client';
 import logoImage from './assets/logo.svg';
 import LoginScreen from './components/auth/LoginScreen';
+import ClienteVehiculosModal from './components/forms/ClienteVehiculosModal';
 import ConfirmModal from './components/forms/ConfirmModal';
 import CrudModal from './components/forms/CrudModal';
 import VehiculoModal from './components/forms/VehiculoModal';
@@ -48,6 +49,7 @@ function App() {
   const [modal, setModal] = useState(null);
   const [statusModal, setStatusModal] = useState(null);
   const [stockModal, setStockModal] = useState(null);
+  const [vehiculosCliente, setVehiculosCliente] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
   const [toast, setToast] = useState(null);
   const [authNotice, setAuthNotice] = useState('');
@@ -55,6 +57,8 @@ function App() {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  // Marca que se creo un registro relacionado (ej. cliente desde visitas) para recargar catalogos al cerrar.
+  const relatedCreatedRef = useRef(false);
 
   const visibleModules = useMemo(() => getVisibleModules(session), [session]);
 
@@ -63,6 +67,7 @@ function App() {
     setSession(null);
     setModal(null);
     setStatusModal(null);
+    setVehiculosCliente(null);
     setConfirmModal(null);
     setNotificationsOpen(false);
     setNotifications([]);
@@ -76,6 +81,7 @@ function App() {
     setSession(null);
     setModal(null);
     setStatusModal(null);
+    setVehiculosCliente(null);
     setConfirmModal(null);
     setNotificationsOpen(false);
     setNotifications([]);
@@ -251,7 +257,7 @@ function App() {
     }
   };
 
-  const openCreate = (moduleKey) => {
+  const openCreate = (moduleKey, row = {}) => {
     const config = moduleConfig[moduleKey];
 
     if (!visibleModules.some((module) => module.key === moduleKey) || !hasRole(session, config?.createRoles)) {
@@ -260,7 +266,7 @@ function App() {
     }
 
     setFormError('');
-    setModal({ mode: 'create', moduleKey, row: {} });
+    setModal({ mode: 'create', moduleKey, row });
   };
 
   const openEdit = (moduleKey, row) => {
@@ -281,6 +287,40 @@ function App() {
       return;
     }
     setStockModal(row);
+  };
+
+  const canCreateModule = (moduleKey) => (
+    visibleModules.some((module) => module.key === moduleKey) && hasRole(session, moduleConfig[moduleKey]?.createRoles)
+  );
+
+  // Crea un registro desde otro formulario (ej. cliente nuevo al registrar una visita)
+  // y devuelve el registro creado para seleccionarlo en el formulario de origen.
+  const createRelated = async (moduleKey, payload) => {
+    if (!canCreateModule(moduleKey)) {
+      throw new Error('No tienes permiso para crear registros en este modulo');
+    }
+
+    const config = moduleConfig[moduleKey];
+    try {
+      const result = await crudRequest({ path: config.path, token: session.token, method: 'POST', body: payload });
+      const created = result?.[config.recordKey];
+      if (!created?.id) {
+        throw new Error('No se pudo obtener el registro creado.');
+      }
+      relatedCreatedRef.current = true;
+      showToast(`${config.recordLabel || 'Registro'} creado correctamente`);
+      return created;
+    } catch (err) {
+      throw new Error(handleRequestError(err));
+    }
+  };
+
+  const closeModal = () => {
+    setModal(null);
+    if (relatedCreatedRef.current) {
+      relatedCreatedRef.current = false;
+      refresh();
+    }
   };
 
   const submitCrud = async (payload) => {
@@ -305,6 +345,7 @@ function App() {
     setFormError('');
     try {
       await crudRequest({ path, token: session.token, method, body: payload });
+      relatedCreatedRef.current = false;
       setModal(null);
       showToast('Registro guardado correctamente');
       refresh();
@@ -473,12 +514,28 @@ function App() {
           onEdit={openEdit}
           onToggleStatus={toggleStatus}
           onStockMovement={openStockMovement}
+          onViewVehiculos={setVehiculosCliente}
           onRefresh={refresh}
           showToast={showToast}
           onRequestError={handleRequestError}
         />
       </main>
 
+      {vehiculosCliente ? (
+        <ClienteVehiculosModal
+          cliente={vehiculosCliente}
+          token={session.token}
+          reloadKey={reloadKey}
+          canCreate={canCreateModule('vehiculos')}
+          canEdit={hasRole(session, moduleConfig.vehiculos?.editRoles)}
+          canStatus={hasRole(session, moduleConfig.vehiculos?.statusRoles)}
+          onClose={() => setVehiculosCliente(null)}
+          onCreate={(cliente) => openCreate('vehiculos', { cliente_id: cliente.id })}
+          onEdit={(row) => openEdit('vehiculos', row)}
+          onToggleStatus={(row) => toggleStatus('vehiculos', row)}
+          onRequestError={handleRequestError}
+        />
+      ) : null}
       {modal && modal.moduleKey === 'vehiculos' ? (
         <VehiculoModal
           modal={modal}
@@ -496,8 +553,10 @@ function App() {
           catalogs={catalogs}
           saving={saving}
           error={formError}
-          onClose={() => setModal(null)}
+          onClose={closeModal}
           onSubmit={submitCrud}
+          canCreateRelated={canCreateModule}
+          onCreateRelated={createRelated}
         />
       ) : null}
       {statusModal ? (
