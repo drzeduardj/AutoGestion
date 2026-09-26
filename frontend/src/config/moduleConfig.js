@@ -169,8 +169,8 @@ export const moduleConfig = {
       { name: 'unidad_medida', label: 'Unidad de medida', defaultValue: 'Unidad', maxLength: 50 },
       { name: 'stock_inicial', label: 'Stock inicial', type: 'number', min: 0, valueType: 'number', hideOnEdit: true },
       { name: 'stock_minimo', label: 'Stock minimo', type: 'number', min: 0, valueType: 'number' },
-      { name: 'costo_promedio', label: 'Costo promedio', type: 'number', min: 0, step: 1, valueType: 'integer' },
-      { name: 'precio_referencia', label: 'Precio referencia', type: 'number', min: 0, step: 1, valueType: 'integer' },
+      { name: 'costo_promedio', label: 'Costo de compra (unidad)', hint: 'Lo que te cuesta cada unidad. Sirve para calcular tu ganancia.', type: 'number', min: 0, step: 1, valueType: 'integer' },
+      { name: 'precio_referencia', label: 'Precio de venta (unidad)', hint: 'Se usa por defecto en cotizaciones y facturas.', type: 'number', min: 0, step: 1, valueType: 'integer' },
       { name: 'estado', label: 'Estado', type: 'select', options: estadosGenerales, defaultValue: 'Activo' }
     ]
   },

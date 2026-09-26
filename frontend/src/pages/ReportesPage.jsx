@@ -374,7 +374,7 @@ function ProductsTable({ productos }) {
           <tr>
             <th>Producto</th>
             <th className="num">Cant.</th>
-            <th className="num">Precio ref.</th>
+            <th className="num">Precio venta</th>
             <th className="num">Total ref.</th>
           </tr>
         </thead>

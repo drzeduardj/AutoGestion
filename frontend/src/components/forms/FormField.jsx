@@ -3,6 +3,7 @@ import SearchSelect from '../ui/SearchSelect';
 function FormField({ field, mode, value, error, onChange, onCreate }) {
   const required = Boolean(field.required || (mode === 'create' && field.requiredOnCreate));
   const integerOnly = field.valueType === 'integer';
+  const hint = field.hint ? <small className="field-hint">{field.hint}</small> : null;
   const handleInputChange = (event) => {
     const integerPart = event.target.value.split(/[.,]/)[0];
     const nextValue = integerOnly
@@ -24,7 +25,7 @@ function FormField({ field, mode, value, error, onChange, onCreate }) {
           aria-invalid={Boolean(error)}
           rows={3}
         />
-        {error ? <span className="field-error">{error}</span> : null}
+        {error ? <span className="field-error">{error}</span> : hint}
       </label>
     );
   }
@@ -46,7 +47,7 @@ function FormField({ field, mode, value, error, onChange, onCreate }) {
           onCreate={onCreate}
           createLabel={field.createLabel}
         />
-        {error ? <span className="field-error">{error}</span> : null}
+        {error ? <span className="field-error">{error}</span> : hint}
       </label>
     );
   }
@@ -70,7 +71,7 @@ function FormField({ field, mode, value, error, onChange, onCreate }) {
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
         </select>
-        {error ? <span className="field-error">{error}</span> : null}
+        {error ? <span className="field-error">{error}</span> : hint}
       </label>
     );
   }
@@ -97,7 +98,7 @@ function FormField({ field, mode, value, error, onChange, onCreate }) {
         maxLength={field.maxLength}
         aria-invalid={Boolean(error)}
       />
-      {error ? <span className="field-error">{error}</span> : null}
+      {error ? <span className="field-error">{error}</span> : hint}
     </label>
   );
 }

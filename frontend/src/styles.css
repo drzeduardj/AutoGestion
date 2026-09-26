@@ -2424,6 +2424,11 @@ td {
   font-size: 14px;
 }
 
+.field-hint {
+  color: #657484;
+  font-size: 12px;
+}
+
 .field-wide,
 .full-row,
 .modal-actions {
