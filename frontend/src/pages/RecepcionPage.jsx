@@ -5,15 +5,15 @@ import { apiRequest } from '../api/client';
 import EmptyState from '../components/ui/EmptyState';
 import ErrorState from '../components/ui/ErrorState';
 import SearchSelect from '../components/ui/SearchSelect';
-import DanosDiagram, { diagramaVehiculo } from '../components/ui/DanosDiagram';
+import DanosDiagram from '../components/ui/DanosDiagram';
 import { DanosDocument, InventarioDocument } from '../components/ui/RecepcionDocuments';
 import {
   autorizaciones,
   checklistItems,
   checklistSections,
+  getDiagrama,
   tiposDano,
-  zonaLabel,
-  zonasCarroceria
+  zonaLabel
 } from '../constants/recepcion';
 import { formatDate, optionLabel, vehicleLabel } from '../utils/formatters';
 
@@ -34,6 +34,8 @@ const initialForm = () => ({
   firma_cliente: '',
   danos: {},
   observaciones_danos: '',
+  // Clave del diagrama de danos (turismo, camioneta, pickup); la decide el backend.
+  tipo_diagrama: '',
   ...emptyChecklist()
 });
 
@@ -101,7 +103,8 @@ function RecepcionPage({ session, data, loading, error, onRefresh, onRequestErro
           nombre_aceptacion: recepcion.nombre_aceptacion || '',
           firma_cliente: recepcion.firma_cliente || '',
           danos: recepcion.danos || {},
-          observaciones_danos: recepcion.observaciones_danos || ''
+          observaciones_danos: recepcion.observaciones_danos || '',
+          tipo_diagrama: payload.tipo_diagrama || ''
         });
       })
       .catch((err) => {
@@ -123,7 +126,7 @@ function RecepcionPage({ session, data, loading, error, onRefresh, onRequestErro
     const imagenes = [...document.querySelectorAll('.recepcion-print-portal img')];
     // El diagrama es una <image> dentro del SVG: se precarga aparte.
     const diagrama = new Image();
-    diagrama.src = diagramaVehiculo;
+    diagrama.src = getDiagrama(form.tipo_diagrama).imagen;
 
     Promise.all([
       ...imagenes.map((img) => (img.complete ? null : new Promise((resolve) => {
@@ -142,7 +145,7 @@ function RecepcionPage({ session, data, loading, error, onRefresh, onRequestErro
     return () => {
       cancelled = true;
     };
-  }, [printDoc]);
+  }, [form.tipo_diagrama, printDoc]);
 
   const updateField = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -202,6 +205,7 @@ function RecepcionPage({ session, data, loading, error, onRefresh, onRequestErro
         }
       });
       setRecibidoPor(payload.recepcion?.recibido_por_nombre || recibidoPor);
+      if (payload.tipo_diagrama) updateField('tipo_diagrama', payload.tipo_diagrama);
       return true;
     } catch (err) {
       setFormError(onRequestError?.(err) || err.message);
@@ -226,7 +230,8 @@ function RecepcionPage({ session, data, loading, error, onRefresh, onRequestErro
 
   const visitaDoc = visitaDetalle || selectedVisita;
   const danoSeleccionado = zonaSeleccionada ? form.danos[zonaSeleccionada] || { tipos: [], nota: '' } : null;
-  const zonasConDano = zonasCarroceria.filter((zona) => form.danos[zona.key]);
+  const diagrama = getDiagrama(form.tipo_diagrama);
+  const zonasConDano = diagrama.zonas.filter((zona) => form.danos[zona.key]);
 
   return (
     <div className="reception-shell">
@@ -348,14 +353,14 @@ function RecepcionPage({ session, data, loading, error, onRefresh, onRequestErro
 
           <div className="reception-section-heading">
             <h3>Daños de carroceria</h3>
-            <span>Toca una zona del vehiculo y marca el tipo de daño. Las zonas sin marcar se reciben sin daños visibles.</span>
+            <span>Diagrama de {diagrama.nombre.toLowerCase()}. Toca una zona del vehiculo y marca el tipo de daño. Las zonas sin marcar se reciben sin daños visibles.</span>
           </div>
           <div className="danos-editor">
-            <DanosDiagram danos={form.danos} selected={zonaSeleccionada} onSelect={setZonaSeleccionada} />
+            <DanosDiagram tipo={form.tipo_diagrama} danos={form.danos} selected={zonaSeleccionada} onSelect={setZonaSeleccionada} />
             <div className="danos-editor-side">
               {danoSeleccionado ? (
                 <div className="danos-zone-panel">
-                  <strong>{zonaLabel(zonaSeleccionada)}</strong>
+                  <strong>{zonaLabel(zonaSeleccionada, form.tipo_diagrama)}</strong>
                   <div className="danos-type-list">
                     {tiposDano.map((tipo) => (
                       <label key={tipo.codigo} className={danoSeleccionado.tipos.includes(tipo.codigo) ? 'danos-type danos-type-on' : 'danos-type'}>

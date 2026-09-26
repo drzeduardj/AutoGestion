@@ -79,9 +79,10 @@ export const moduleConfig = {
       ['cliente_nombre', 'Cliente'],
       ['marca', 'Marca'],
       ['modelo', 'Modelo'],
+      ['tipo_vehiculo', 'Tipo'],
       ['estado', 'Estado']
     ],
-    fields: ({ clientes }) => [
+    fields: ({ clientes, tiposVehiculo }) => [
       { name: 'cliente_id', label: 'Cliente', type: 'select', options: clientes.map((row) => ({ value: row.id, label: row.nombre })), required: true, valueType: 'number' },
       { name: 'placa', label: 'Placa', maxLength: 20 },
       { name: 'marca', label: 'Marca', required: true, maxLength: 80 },
@@ -89,7 +90,7 @@ export const moduleConfig = {
       { name: 'anio', label: 'Anio', type: 'number', min: 1900, max: nextYear, valueType: 'integer' },
       { name: 'color', label: 'Color', maxLength: 50 },
       { name: 'vin', label: 'VIN', maxLength: 80 },
-      { name: 'tipo_vehiculo', label: 'Tipo de vehiculo', maxLength: 50 },
+      { name: 'tipo_vehiculo_id', label: 'Tipo de vehiculo', type: 'select', options: tiposVehiculo.map((row) => ({ value: row.id, label: row.nombre })), valueType: 'number', hint: 'Define el diagrama de daños en la recepcion.' },
       { name: 'kilometraje_actual', label: 'Kilometraje', type: 'number', min: 0, valueType: 'integer' },
       { name: 'observaciones', label: 'Observaciones', type: 'textarea' },
       { name: 'estado', label: 'Estado', type: 'select', options: estadosGenerales, defaultValue: 'Activo' }

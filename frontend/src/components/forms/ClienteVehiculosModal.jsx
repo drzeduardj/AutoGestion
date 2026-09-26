@@ -8,6 +8,7 @@ import ErrorState from '../ui/ErrorState';
 const columns = [
   ['placa', 'Placa'],
   ['vehiculo', 'Vehiculo', (_, row) => [row.marca, row.modelo, row.anio].filter(Boolean).join(' ') || 'Sin dato'],
+  ['tipo_vehiculo', 'Tipo'],
   ['color', 'Color'],
   ['kilometraje_actual', 'Kilometraje'],
   ['estado', 'Estado']

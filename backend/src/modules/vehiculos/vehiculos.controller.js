@@ -48,7 +48,7 @@ const buildVehiculoPayload = (body, partial = false) => {
   assign('anio', normalizeNullableNumber(body.anio));
   assign('color', normalizeNullableString(body.color));
   assign('vin', normalizeNullableString(body.vin, true));
-  assign('tipo_vehiculo', normalizeNullableString(body.tipo_vehiculo));
+  assign('tipo_vehiculo_id', normalizeNullableNumber(body.tipo_vehiculo_id));
   assign('kilometraje_actual', normalizeNullableNumber(body.kilometraje_actual));
   assign('observaciones', normalizeNullableString(body.observaciones));
   assign('estado', body.estado !== undefined ? String(body.estado).trim() : undefined);
@@ -77,6 +77,25 @@ const ensureClienteActivo = async (clienteId, res) => {
   }
 
   return true;
+};
+
+const ensureTipoActivo = async (tipoId, res) => {
+  if (!tipoId) {
+    return true;
+  }
+
+  if (!(await vehiculosModel.tipoActivo(tipoId))) {
+    errorResponse(res, 'El tipo de vehiculo indicado no existe o esta inactivo', undefined, 400);
+    return false;
+  }
+
+  return true;
+};
+
+const listTipos = async (req, res) => {
+  const tipos = await vehiculosModel.listTipos();
+
+  return successResponse(res, 'Tipos de vehiculo obtenidos correctamente', { tipos });
 };
 
 const listVehiculos = async (req, res) => {
@@ -114,6 +133,10 @@ const createVehiculo = async (req, res) => {
       return undefined;
     }
 
+    if (!(await ensureTipoActivo(payload.tipo_vehiculo_id, res))) {
+      return undefined;
+    }
+
     const vehiculo = await vehiculosModel.create(payload);
 
     return successResponse(res, 'Vehiculo creado correctamente', { vehiculo }, 201);
@@ -127,6 +150,10 @@ const updateVehiculo = async (req, res) => {
     const payload = buildVehiculoPayload(req.body, true);
 
     if (payload.cliente_id !== undefined && !(await ensureClienteActivo(payload.cliente_id, res))) {
+      return undefined;
+    }
+
+    if (!(await ensureTipoActivo(payload.tipo_vehiculo_id, res))) {
       return undefined;
     }
 
@@ -217,6 +244,7 @@ const addFoto = async (req, res) => {
 };
 
 module.exports = {
+  listTipos,
   listVehiculos,
   getVehiculo,
   createVehiculo,

@@ -5,8 +5,8 @@ import {
   checklistSections,
   tipoDanoLabel,
   tiposDano,
-  zonaLabel,
-  zonasCarroceria
+  getDiagrama,
+  zonaLabel
 } from '../../constants/recepcion';
 import { formatDate } from '../../utils/formatters';
 import DanosDiagram from './DanosDiagram';
@@ -134,8 +134,9 @@ export function InventarioDocument({ visita, recepcion, recibidoPor }) {
 
 export function DanosDocument({ visita, recepcion, recibidoPor }) {
   const danos = recepcion.danos || {};
-  const zonasMarcadas = zonasCarroceria.filter((zona) => danos[zona.key]);
-  const zonasExtra = Object.keys(danos).filter((key) => !zonasCarroceria.some((zona) => zona.key === key));
+  const { zonas } = getDiagrama(recepcion.tipo_diagrama);
+  const zonasMarcadas = zonas.filter((zona) => danos[zona.key]);
+  const zonasExtra = Object.keys(danos).filter((key) => !zonas.some((zona) => zona.key === key));
 
   return (
     <article className="recepcion-doc">
@@ -144,7 +145,7 @@ export function DanosDocument({ visita, recepcion, recibidoPor }) {
 
       <h2 className="recepcion-doc-band">Estado de la carrocería</h2>
       <div className="recepcion-doc-danos">
-        <DanosDiagram danos={danos} />
+        <DanosDiagram tipo={recepcion.tipo_diagrama} danos={danos} />
         <div>
           <div className="recepcion-doc-legend-box">
             <strong>Simbología</strong>
@@ -159,7 +160,7 @@ export function DanosDocument({ visita, recepcion, recibidoPor }) {
             <tbody>
               {[...zonasMarcadas.map((zona) => zona.key), ...zonasExtra].map((key) => (
                 <tr key={key}>
-                  <td>{zonaLabel(key)}</td>
+                  <td>{zonaLabel(key, recepcion.tipo_diagrama)}</td>
                   <td>{(danos[key].tipos || []).map(tipoDanoLabel).join(', ') || '—'}</td>
                   <td>{danos[key].nota || ''}</td>
                 </tr>

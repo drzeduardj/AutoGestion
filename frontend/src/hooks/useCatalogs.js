@@ -9,12 +9,14 @@ const initialCatalogs = {
   mecanicos: [],
   categoriasServicio: [],
   categoriasProducto: [],
-  flujosTrabajo: []
+  flujosTrabajo: [],
+  tiposVehiculo: []
 };
 
 const catalogRequests = [
   ['clientes', '/clientes', ['Admin', 'Cajero']],
   ['vehiculos', '/vehiculos', ['Admin', 'Cajero']],
+  ['tiposVehiculo', '/tipos-vehiculo', ['Admin', 'Cajero']],
   ['usuarios', '/usuarios', ['Admin']],
   ['categoriasServicio', '/categorias-servicio', ['Admin', 'Cajero']],
   ['categoriasProducto', '/categorias-producto', ['Admin', 'Cajero', 'Mecanico']],
@@ -24,6 +26,7 @@ const catalogRequests = [
 const resourceKeys = {
   clientes: 'clientes',
   vehiculos: 'vehiculos',
+  tiposVehiculo: 'tipos',
   usuarios: 'usuarios',
   categoriasServicio: 'categorias',
   categoriasProducto: 'categorias',

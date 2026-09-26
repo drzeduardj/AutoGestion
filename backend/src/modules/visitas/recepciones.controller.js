@@ -57,6 +57,20 @@ const normalizeDanos = (value) => {
   }, {});
 };
 
+const DIAGRAMA_POR_DEFECTO = 'turismo';
+
+// Diagrama de danos de la recepcion: si ya tiene danos marcados conserva el diagrama sobre el
+// que se registraron; si no, usa el tipo actual del vehiculo (turismo si no tiene tipo).
+const resolverTipoDiagrama = (recepcion, claveVehiculo) => {
+  const tieneDanos = Object.keys(recepcion?.danos || {}).length > 0;
+
+  if (tieneDanos && recepcion.tipo_diagrama) {
+    return recepcion.tipo_diagrama;
+  }
+
+  return claveVehiculo || DIAGRAMA_POR_DEFECTO;
+};
+
 const buildPayload = (body, user) => ({
   nivel_combustible: normalizeNullableNumber(body.nivel_combustible),
   exteriores: normalizeChecklist(body.exteriores),
@@ -86,10 +100,12 @@ const getRecepcion = async (req, res) => {
   }
 
   const recepcion = await recepcionesModel.findByVisitaId(visitaId);
+  const claveVehiculo = await recepcionesModel.claveTipoVehiculoDeVisita(visitaId);
 
   return successResponse(res, 'Recepcion obtenida correctamente', {
     visita,
-    recepcion
+    recepcion,
+    tipo_diagrama: resolverTipoDiagrama(recepcion, claveVehiculo)
   });
 };
 
@@ -102,15 +118,23 @@ const saveRecepcion = async (req, res) => {
   }
 
   const payload = buildPayload(req.body, req.user);
+  const [recepcionActual, claveVehiculo] = await Promise.all([
+    recepcionesModel.findByVisitaId(visitaId),
+    recepcionesModel.claveTipoVehiculoDeVisita(visitaId)
+  ]);
+  payload.tipo_diagrama = resolverTipoDiagrama(recepcionActual, claveVehiculo);
+
   const recepcion = await recepcionesModel.upsertByVisitaId(visitaId, payload);
 
   return successResponse(res, 'Recepcion guardada correctamente', {
     visita,
-    recepcion
+    recepcion,
+    tipo_diagrama: recepcion.tipo_diagrama
   });
 };
 
 module.exports = {
+  resolverTipoDiagrama,
   getRecepcion,
   saveRecepcion
 };

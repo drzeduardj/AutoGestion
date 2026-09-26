@@ -3611,7 +3611,7 @@ td {
 
 .danos-axis {
   fill: #8190a0;
-  font-size: 10px;
+  font-size: calc(10px * var(--danos-escala, 1));
   font-weight: 700;
   letter-spacing: 0.08em;
 }
@@ -3627,9 +3627,9 @@ td {
 .danos-zone-codes {
   fill: #9c2f32;
   stroke: #ffffff;
-  stroke-width: 4px;
+  stroke-width: calc(4px * var(--danos-escala, 1));
   paint-order: stroke;
-  font-size: 17px;
+  font-size: calc(17px * var(--danos-escala, 1));
   font-weight: 700;
   pointer-events: none;
 }

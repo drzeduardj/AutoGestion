@@ -10,6 +10,7 @@ const RECEPCION_SELECT = `
   vr.componentes_mecanicos,
   vr.danos,
   vr.observaciones_danos,
+  vr.tipo_diagrama,
   vr.trabajo_a_realizar,
   vr.comentarios_cliente,
   vr.autoriza_presupuesto_previo,
@@ -61,7 +62,8 @@ const upsertByVisitaId = async (visitaId, payload) => {
         recibido_por,
         fecha_recepcion,
         danos,
-        observaciones_danos
+        observaciones_danos,
+        tipo_diagrama
       )
       VALUES (
         $1,
@@ -81,7 +83,8 @@ const upsertByVisitaId = async (visitaId, payload) => {
         $15,
         COALESCE($16, NOW()),
         $17::jsonb,
-        $18
+        $18,
+        $19
       )
       ON CONFLICT (visita_id) DO UPDATE
       SET
@@ -102,6 +105,7 @@ const upsertByVisitaId = async (visitaId, payload) => {
         fecha_recepcion = EXCLUDED.fecha_recepcion,
         danos = EXCLUDED.danos,
         observaciones_danos = EXCLUDED.observaciones_danos,
+        tipo_diagrama = EXCLUDED.tipo_diagrama,
         fecha_actualizacion = NOW()
       RETURNING id
     `,
@@ -123,14 +127,33 @@ const upsertByVisitaId = async (visitaId, payload) => {
       payload.recibido_por || null,
       payload.fecha_recepcion || null,
       JSON.stringify(payload.danos || {}),
-      payload.observaciones_danos || null
+      payload.observaciones_danos || null,
+      payload.tipo_diagrama || null
     ]
   );
 
   return findByVisitaId(visitaId || result.rows[0]?.id);
 };
 
+// Clave del tipo del vehiculo de la visita (turismo, camioneta, pickup) o null si no tiene.
+const claveTipoVehiculoDeVisita = async (visitaId) => {
+  const result = await query(
+    `
+      SELECT tv.clave
+      FROM visitas vi
+      INNER JOIN vehiculos ve ON ve.id = vi.vehiculo_id
+      LEFT JOIN tipos_vehiculo tv ON tv.id = ve.tipo_vehiculo_id
+      WHERE vi.id = $1
+      LIMIT 1
+    `,
+    [visitaId]
+  );
+
+  return result.rows[0]?.clave || null;
+};
+
 module.exports = {
+  claveTipoVehiculoDeVisita,
   findByVisitaId,
   upsertByVisitaId
 };

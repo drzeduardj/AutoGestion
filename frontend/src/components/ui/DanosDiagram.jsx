@@ -1,13 +1,12 @@
-import diagramaVehiculo from '../../assets/diagrama-vehiculo.png';
-import { DIAGRAMA_ALTO, DIAGRAMA_ANCHO, zonasCarroceria } from '../../constants/recepcion';
-
-export { diagramaVehiculo };
+import { DIAGRAMA_ANCHO_BASE, getDiagrama } from '../../constants/recepcion';
 
 // Diagrama de carroceria: la imagen del vehiculo va de fondo y encima cada zona es un poligono
-// (o circulo, en las ruedas) transparente que se colorea cuando tiene dano. Sin onSelect se
-// dibuja solo lectura (documento impreso).
-function DanosDiagram({ danos = {}, selected, onSelect }) {
+// (o circulo, en las ruedas) transparente que se colorea cuando tiene dano. `tipo` es la clave
+// del tipo de vehiculo (turismo, camioneta, pickup). Sin onSelect se dibuja solo lectura
+// (documento impreso).
+function DanosDiagram({ tipo, danos = {}, selected, onSelect }) {
   const interactive = Boolean(onSelect);
+  const diagrama = getDiagrama(tipo);
 
   const zoneProps = (zona) => {
     const dano = danos[zona.key];
@@ -39,17 +38,17 @@ function DanosDiagram({ danos = {}, selected, onSelect }) {
   return (
     <svg
       className={interactive ? 'danos-diagram danos-diagram-interactive' : 'danos-diagram'}
-      viewBox={`0 0 ${DIAGRAMA_ANCHO} ${DIAGRAMA_ALTO}`}
+      viewBox={`0 0 ${diagrama.ancho} ${diagrama.alto}`}
+      style={{ '--danos-escala': diagrama.ancho / DIAGRAMA_ANCHO_BASE }}
       role="img"
-      aria-label="Diagrama de daños del vehículo"
+      aria-label={`Diagrama de daños del vehículo (${diagrama.nombre})`}
     >
-      <image href={diagramaVehiculo} x="0" y="0" width={DIAGRAMA_ANCHO} height={DIAGRAMA_ALTO} />
-      <text className="danos-axis" x="266" y="11" textAnchor="middle">FRENTE</text>
-      <text className="danos-axis" x="266" y="742" textAnchor="middle">ATRÁS</text>
-      <text className="danos-axis" x="20" y="742">IZQUIERDO</text>
-      <text className="danos-axis" x="511" y="742" textAnchor="end">DERECHO</text>
+      <image href={diagrama.imagen} x="0" y="0" width={diagrama.ancho} height={diagrama.alto} />
+      {diagrama.ejes.map((eje) => (
+        <text key={eje.texto} className="danos-axis" x={eje.x} y={eje.y} textAnchor={eje.anchor}>{eje.texto}</text>
+      ))}
 
-      {zonasCarroceria.map((zona) => {
+      {diagrama.zonas.map((zona) => {
         const dano = danos[zona.key];
         const codigos = dano?.tipos?.join(' ') || (dano?.nota ? '•' : '');
         const x = zona.r ? zona.cx : zona.lx;

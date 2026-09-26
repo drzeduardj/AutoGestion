@@ -185,7 +185,7 @@ const openapi = {
           anio: { type: 'integer', nullable: true, example: 2020 },
           color: { type: 'string', nullable: true, example: 'Blanco' },
           vin: { type: 'string', nullable: true },
-          tipo_vehiculo: { type: 'string', nullable: true, example: 'Sedan' },
+          tipo_vehiculo_id: { type: 'integer', nullable: true, example: 1, description: 'Ver GET /api/tipos-vehiculo (Turismo, Camioneta, Pickup)' },
           kilometraje_actual: { type: 'integer', nullable: true, example: 45000 },
           observaciones: { type: 'string', nullable: true },
           estado: stateGeneral

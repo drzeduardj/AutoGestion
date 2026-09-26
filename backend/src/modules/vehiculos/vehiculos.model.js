@@ -12,7 +12,9 @@ const VEHICULO_SELECT = `
   v.anio,
   v.color,
   v.vin,
-  v.tipo_vehiculo,
+  v.tipo_vehiculo_id,
+  tv.nombre AS tipo_vehiculo,
+  tv.clave AS tipo_vehiculo_clave,
   v.kilometraje_actual,
   v.fecha_primera_visita,
   v.fecha_ultimo_ingreso,
@@ -62,6 +64,7 @@ const list = async (filters = {}) => {
       SELECT ${VEHICULO_SELECT}
       FROM vehiculos v
       INNER JOIN clientes c ON c.id = v.cliente_id
+      LEFT JOIN tipos_vehiculo tv ON tv.id = v.tipo_vehiculo_id
       ${where}
       ORDER BY v.fecha_creacion DESC, v.id DESC
     `,
@@ -81,6 +84,7 @@ const findById = async (id) => {
       SELECT ${VEHICULO_SELECT}
       FROM vehiculos v
       INNER JOIN clientes c ON c.id = v.cliente_id
+      LEFT JOIN tipos_vehiculo tv ON tv.id = v.tipo_vehiculo_id
       WHERE v.id = $1
       LIMIT 1
     `,
@@ -110,7 +114,7 @@ const create = async (vehiculo) => {
         anio,
         color,
         vin,
-        tipo_vehiculo,
+        tipo_vehiculo_id,
         kilometraje_actual,
         observaciones,
         estado
@@ -126,7 +130,7 @@ const create = async (vehiculo) => {
       vehiculo.anio || null,
       vehiculo.color || null,
       vehiculo.vin || null,
-      vehiculo.tipo_vehiculo || null,
+      vehiculo.tipo_vehiculo_id || null,
       vehiculo.kilometraje_actual ?? null,
       vehiculo.observaciones || null,
       vehiculo.estado || 'Activo'
@@ -145,7 +149,7 @@ const update = async (id, fields) => {
     'anio',
     'color',
     'vin',
-    'tipo_vehiculo',
+    'tipo_vehiculo_id',
     'kilometraje_actual',
     'observaciones',
     'estado'
@@ -295,8 +299,32 @@ const getFotos = async (vehiculoId) => {
   return result.rows;
 };
 
+const listTipos = async () => {
+  const result = await query(
+    `
+      SELECT id, clave, nombre
+      FROM tipos_vehiculo
+      WHERE estado = 'Activo'::estado_general
+      ORDER BY orden, nombre
+    `
+  );
+
+  return result.rows;
+};
+
+const tipoActivo = async (tipoId) => {
+  const result = await query(
+    'SELECT id FROM tipos_vehiculo WHERE id = $1 AND estado = $2::estado_general LIMIT 1',
+    [tipoId, 'Activo']
+  );
+
+  return Boolean(result.rows[0]);
+};
+
 module.exports = {
   list,
+  listTipos,
+  tipoActivo,
   listByCliente,
   findById,
   clienteExists,

@@ -21,7 +21,7 @@ const vehiculoCreateValidators = [
   body('anio').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1900, max: currentYear }).withMessage('Anio invalido'),
   body('color').optional({ nullable: true, checkFalsy: true }).trim().isLength({ max: 50 }).withMessage('Color demasiado largo'),
   body('vin').optional({ nullable: true, checkFalsy: true }).trim().isLength({ max: 80 }).withMessage('VIN demasiado largo'),
-  body('tipo_vehiculo').optional({ nullable: true, checkFalsy: true }).trim().isLength({ max: 50 }).withMessage('Tipo de vehiculo demasiado largo'),
+  body('tipo_vehiculo_id').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }).withMessage('Tipo de vehiculo invalido'),
   body('kilometraje_actual').optional({ nullable: true, checkFalsy: true }).isInt({ min: 0 }).withMessage('Kilometraje invalido'),
   body('observaciones').optional({ nullable: true, checkFalsy: true }).trim(),
   body('estado').optional().isIn(estadosValidos).withMessage('Estado invalido')
@@ -36,7 +36,7 @@ const vehiculoUpdateValidators = [
   body('anio').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1900, max: currentYear }).withMessage('Anio invalido'),
   body('color').optional({ nullable: true, checkFalsy: true }).trim().isLength({ max: 50 }).withMessage('Color demasiado largo'),
   body('vin').optional({ nullable: true, checkFalsy: true }).trim().isLength({ max: 80 }).withMessage('VIN demasiado largo'),
-  body('tipo_vehiculo').optional({ nullable: true, checkFalsy: true }).trim().isLength({ max: 50 }).withMessage('Tipo de vehiculo demasiado largo'),
+  body('tipo_vehiculo_id').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }).withMessage('Tipo de vehiculo invalido'),
   body('kilometraje_actual').optional({ nullable: true, checkFalsy: true }).isInt({ min: 0 }).withMessage('Kilometraje invalido'),
   body('observaciones').optional({ nullable: true, checkFalsy: true }).trim(),
   body('estado').optional().isIn(estadosValidos).withMessage('Estado invalido')
