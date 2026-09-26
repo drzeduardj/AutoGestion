@@ -231,7 +231,9 @@ const insertServicio = async (db, visitaId, servicio) => {
   return result.rows[0].id;
 };
 
-const create = async (visita, servicios = []) => {
+// afterInsert(client, visitaId) corre dentro de la misma transaccion, para que los
+// datos asociados (ej. etapas del flujo) se guarden todo o nada junto con la visita.
+const create = async (visita, servicios = [], { afterInsert } = {}) => {
   const visitaId = await transaction(async (client) => {
     const result = await client.query(
       `
@@ -274,10 +276,14 @@ const create = async (visita, servicios = []) => {
       await insertServicio(client, newVisitaId, servicio);
     }
 
+    if (afterInsert) {
+      await afterInsert(client, newVisitaId);
+    }
+
     return newVisitaId;
   });
 
-  return findById(visitaId);
+  return { id: visitaId };
 };
 
 const update = async (id, fields) => {

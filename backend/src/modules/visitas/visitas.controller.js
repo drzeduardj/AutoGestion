@@ -187,19 +187,30 @@ const createVisita = async (req, res) => {
     return undefined;
   }
 
-  const visita = await visitasModel.create(payload, servicios);
+  // Las etapas del flujo se crean en la misma transaccion que la visita: si algo falla,
+  // no queda una visita a medias.
+  const visita = await visitasModel.create(payload, servicios, {
+    afterInsert: payload.flujo_trabajo_id
+      ? (client, visitaId) => flujosModel.inicializarEtapasVisita({
+        visitaId,
+        flujoTrabajoId: payload.flujo_trabajo_id,
+        usuarioId: req.user?.id,
+        client
+      })
+      : undefined
+  });
 
-  if (payload.flujo_trabajo_id) {
-    await flujosModel.inicializarEtapasVisita({
-      visitaId: visita.id,
-      flujoTrabajoId: payload.flujo_trabajo_id,
-      usuarioId: req.user?.id
-    });
+  // La visita ya quedo guardada. Si falla la lectura del detalle no se responde con error,
+  // porque el usuario reintentaria y la visita quedaria duplicada.
+  let data;
+  try {
+    data = await enrichVisita(await visitasModel.findById(visita.id));
+  } catch (error) {
+    console.error(`Visita ${visita.id} creada, pero no se pudo leer su detalle:`, error.message);
+    data = { visita };
   }
 
-  const visitaCreada = await visitasModel.findById(visita.id);
-
-  return successResponse(res, 'Visita creada correctamente', await enrichVisita(visitaCreada), 201);
+  return successResponse(res, 'Visita creada correctamente', data, 201);
 };
 
 const MENSAJE_ENTREGA_SIN_FACTURA = 'Emite la factura de la visita antes de marcarla como entregada';

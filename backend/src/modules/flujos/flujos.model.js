@@ -118,10 +118,13 @@ const listFlujosWithEtapas = async ({ estado = 'Activo' } = {}) => {
   }));
 };
 
-const inicializarEtapasVisita = async ({ visitaId, flujoTrabajoId, usuarioId, replace = false }) => {
+// Con `client` se ejecuta dentro de una transaccion existente (ej. al crear la visita);
+// sin el, abre su propia transaccion.
+const inicializarEtapasVisita = async ({ visitaId, flujoTrabajoId, usuarioId, replace = false, client: outerClient }) => {
   const etapas = await listEtapasByFlujo(flujoTrabajoId);
+  const run = outerClient ? (callback) => callback(outerClient) : transaction;
 
-  await transaction(async (client) => {
+  await run(async (client) => {
     if (replace) {
       await client.query('DELETE FROM visita_etapas WHERE visita_id = $1', [visitaId]);
     }
