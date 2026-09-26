@@ -149,6 +149,8 @@ router.put(
     body('interiores').optional().isObject().withMessage('interiores debe ser un objeto'),
     body('accesorios').optional().isObject().withMessage('accesorios debe ser un objeto'),
     body('componentes_mecanicos').optional().isObject().withMessage('componentes_mecanicos debe ser un objeto'),
+    body('danos').optional().isObject().withMessage('danos debe ser un objeto'),
+    body('observaciones_danos').optional({ nullable: true, checkFalsy: true }).trim(),
     body('trabajo_a_realizar').optional({ nullable: true, checkFalsy: true }).trim(),
     body('comentarios_cliente').optional({ nullable: true, checkFalsy: true }).trim(),
     body('autoriza_presupuesto_previo').optional().isBoolean().withMessage('autoriza_presupuesto_previo debe ser booleano'),

@@ -3534,3 +3534,427 @@ td {
     page-break-inside: avoid;
   }
 }
+
+/* ============================================================
+   Recepcion: diagrama de danos y documentos imprimibles
+   ============================================================ */
+.reception-section-heading {
+  display: grid;
+  gap: 2px;
+  padding-top: 6px;
+  border-top: 1px solid #edf1f5;
+}
+
+.reception-section-heading h3 {
+  margin: 0;
+  font-size: 17px;
+  letter-spacing: 0;
+}
+
+.reception-section-heading span {
+  color: #657484;
+  font-size: 13px;
+}
+
+.reception-actions {
+  flex-wrap: wrap;
+}
+
+.danos-editor {
+  display: grid;
+  grid-template-columns: minmax(260px, 420px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.danos-diagram {
+  width: 100%;
+  height: auto;
+  display: block;
+  font-family: Arial, sans-serif;
+}
+
+.danos-axis {
+  fill: #8190a0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.danos-zone polygon,
+.danos-zone circle {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.danos-zone-codes {
+  fill: #9c2f32;
+  stroke: #ffffff;
+  stroke-width: 4px;
+  paint-order: stroke;
+  font-size: 17px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.danos-zone-marked polygon,
+.danos-zone-marked circle {
+  fill: rgba(192, 57, 43, 0.28);
+  stroke: #c0392b;
+}
+
+.danos-diagram-interactive .danos-zone {
+  cursor: pointer;
+  outline: none;
+}
+
+.danos-diagram-interactive .danos-zone:hover polygon,
+.danos-diagram-interactive .danos-zone:hover circle,
+.danos-diagram-interactive .danos-zone:focus-visible polygon,
+.danos-diagram-interactive .danos-zone:focus-visible circle {
+  fill: rgba(38, 92, 123, 0.14);
+  stroke: #265c7b;
+}
+
+.danos-diagram-interactive .danos-zone-marked:hover polygon,
+.danos-diagram-interactive .danos-zone-marked:hover circle {
+  fill: rgba(192, 57, 43, 0.4);
+}
+
+.danos-zone-selected polygon,
+.danos-zone-selected circle {
+  stroke: #265c7b !important;
+  stroke-width: 3.5 !important;
+}
+
+.danos-editor-side {
+  display: grid;
+  gap: 12px;
+}
+
+.danos-zone-panel,
+.danos-summary {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #dce3ea;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.danos-zone-panel .secondary-button {
+  justify-self: start;
+}
+
+.danos-type-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.danos-type {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid #ccd6df;
+  border-radius: 6px;
+  color: #405160;
+  background: #f7f9fb;
+  cursor: pointer;
+}
+
+.danos-type input {
+  width: 18px;
+  height: 18px;
+  accent-color: #c0392b;
+}
+
+.danos-type b {
+  min-width: 18px;
+  color: #9c2f32;
+}
+
+.danos-type-on {
+  border-color: #c0392b;
+  background: #fdf0f0;
+}
+
+.danos-summary button {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 9px;
+  border: 1px solid #edf1f5;
+  border-radius: 6px;
+  color: #263745;
+  background: #f7f9fb;
+  text-align: left;
+}
+
+.danos-summary button b {
+  color: #9c2f32;
+}
+
+.danos-summary-empty {
+  color: #657484;
+  font-size: 13px;
+}
+
+@media (max-width: 980px) {
+  .danos-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .danos-diagram-interactive {
+    max-width: 420px;
+    margin: 0 auto;
+  }
+}
+
+/* Documentos de recepcion (solo se muestran al imprimir) */
+.recepcion-print-portal {
+  display: none;
+}
+
+.recepcion-doc {
+  color: #111111;
+  font-family: Arial, sans-serif;
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.recepcion-doc-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #17415c;
+}
+
+.recepcion-doc-header img {
+  height: 44px;
+  width: auto;
+  max-width: 110px;
+  object-fit: contain;
+}
+
+.recepcion-doc-header h1 {
+  margin: 0;
+  color: #c0392b;
+  font-size: 18px;
+}
+
+.recepcion-doc-header p {
+  margin: 2px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.recepcion-doc-folio {
+  display: grid;
+  text-align: right;
+}
+
+.recepcion-doc-folio span {
+  font-size: 9.5px;
+  color: #555555;
+}
+
+.recepcion-doc-folio strong {
+  font-size: 14px;
+}
+
+.recepcion-doc-band {
+  margin: 8px 0 4px;
+  padding: 2px 6px;
+  border: 1px solid #333333;
+  background: #eef2f5;
+  font-size: 10.5px;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.recepcion-doc-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px 14px;
+  margin: 0;
+}
+
+.recepcion-doc-fields div {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid #cccccc;
+  padding: 2px 0;
+}
+
+.recepcion-doc-fields dt {
+  font-weight: 700;
+}
+
+.recepcion-doc-fields dd {
+  margin: 0;
+}
+
+.recepcion-doc-field-wide {
+  grid-column: span 2;
+}
+
+.recepcion-doc-text {
+  margin: 2px 0 4px;
+  min-height: 16px;
+  white-space: pre-wrap;
+}
+
+.recepcion-doc-notes {
+  min-height: 42px;
+  border: 1px solid #cccccc;
+  padding: 4px 6px;
+}
+
+.recepcion-doc-legend {
+  margin: 6px 0 2px;
+  color: #444444;
+  font-size: 9.5px;
+  font-style: italic;
+}
+
+.recepcion-doc-checklist {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 14px;
+}
+
+.recepcion-doc-check-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px 8px;
+}
+
+.recepcion-doc-check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.recepcion-doc-check span {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #333333;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.recepcion-doc-auth {
+  display: grid;
+  gap: 2px;
+}
+
+.recepcion-doc-fuel {
+  width: 240px;
+  display: grid;
+  gap: 2px;
+}
+
+.recepcion-doc-fuel-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+}
+
+.recepcion-doc-fuel-bar {
+  height: 12px;
+  border: 1px solid #333333;
+}
+
+.recepcion-doc-fuel-bar span {
+  display: block;
+  height: 100%;
+  background: #7d8c9b;
+}
+
+.recepcion-doc-danos {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.recepcion-doc-legend-box {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  border: 1px solid #cccccc;
+}
+
+.recepcion-doc-legend-box b {
+  display: inline-block;
+  width: 14px;
+  color: #9c2f32;
+}
+
+.recepcion-doc-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.recepcion-doc-table th,
+.recepcion-doc-table td {
+  height: auto;
+  border: 1px solid #999999;
+  padding: 3px 5px;
+  color: #111111;
+  font-size: 10px;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.recepcion-doc-table th {
+  background: #eef2f5;
+}
+
+.recepcion-doc-signatures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px;
+  margin-top: 34px;
+  text-align: center;
+}
+
+.recepcion-doc-signatures span {
+  display: block;
+  border-top: 1px solid #111111;
+  margin-bottom: 3px;
+}
+
+@media print {
+  body.printing-recepcion #root {
+    display: none !important;
+  }
+
+  body.printing-recepcion .recepcion-print-portal {
+    display: block !important;
+  }
+
+  .recepcion-doc .danos-zone polygon,
+  .recepcion-doc .danos-zone circle,
+  .recepcion-doc-band,
+  .recepcion-doc-table th,
+  .recepcion-doc-fuel-bar span {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

@@ -32,6 +32,31 @@ const normalizeChecklist = (value) => {
   }, {});
 };
 
+// Codigos de dano del diagrama de carroceria (ver frontend/src/constants/recepcion.js).
+const TIPOS_DANO = ['G', 'R', 'P', 'Q', 'O'];
+
+const normalizeDanos = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.entries(value).reduce((acc, [zona, dano]) => {
+    const zonaKey = String(zona).trim().slice(0, 60);
+    if (!zonaKey || !dano || typeof dano !== 'object') return acc;
+
+    const tipos = Array.isArray(dano.tipos)
+      ? [...new Set(dano.tipos.map(String))].filter((tipo) => TIPOS_DANO.includes(tipo))
+      : [];
+    const nota = normalizeNullableString(dano.nota)?.slice(0, 255) || null;
+
+    // Una zona sin tipo ni nota equivale a "sin dano": no se guarda.
+    if (tipos.length || nota) {
+      acc[zonaKey] = { tipos, nota };
+    }
+    return acc;
+  }, {});
+};
+
 const buildPayload = (body, user) => ({
   nivel_combustible: normalizeNullableNumber(body.nivel_combustible),
   exteriores: normalizeChecklist(body.exteriores),
@@ -47,7 +72,9 @@ const buildPayload = (body, user) => ({
   nombre_aceptacion: normalizeNullableString(body.nombre_aceptacion),
   firma_cliente: normalizeNullableString(body.firma_cliente),
   recibido_por: normalizeNullableNumber(body.recibido_por) || user?.id,
-  fecha_recepcion: normalizeNullableString(body.fecha_recepcion)
+  fecha_recepcion: normalizeNullableString(body.fecha_recepcion),
+  danos: normalizeDanos(body.danos),
+  observaciones_danos: normalizeNullableString(body.observaciones_danos)
 });
 
 const getRecepcion = async (req, res) => {

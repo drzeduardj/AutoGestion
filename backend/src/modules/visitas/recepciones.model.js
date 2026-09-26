@@ -8,6 +8,8 @@ const RECEPCION_SELECT = `
   vr.interiores,
   vr.accesorios,
   vr.componentes_mecanicos,
+  vr.danos,
+  vr.observaciones_danos,
   vr.trabajo_a_realizar,
   vr.comentarios_cliente,
   vr.autoriza_presupuesto_previo,
@@ -57,7 +59,9 @@ const upsertByVisitaId = async (visitaId, payload) => {
         nombre_aceptacion,
         firma_cliente,
         recibido_por,
-        fecha_recepcion
+        fecha_recepcion,
+        danos,
+        observaciones_danos
       )
       VALUES (
         $1,
@@ -75,7 +79,9 @@ const upsertByVisitaId = async (visitaId, payload) => {
         $13,
         $14,
         $15,
-        COALESCE($16, NOW())
+        COALESCE($16, NOW()),
+        $17::jsonb,
+        $18
       )
       ON CONFLICT (visita_id) DO UPDATE
       SET
@@ -94,6 +100,8 @@ const upsertByVisitaId = async (visitaId, payload) => {
         firma_cliente = EXCLUDED.firma_cliente,
         recibido_por = EXCLUDED.recibido_por,
         fecha_recepcion = EXCLUDED.fecha_recepcion,
+        danos = EXCLUDED.danos,
+        observaciones_danos = EXCLUDED.observaciones_danos,
         fecha_actualizacion = NOW()
       RETURNING id
     `,
@@ -113,7 +121,9 @@ const upsertByVisitaId = async (visitaId, payload) => {
       payload.nombre_aceptacion || null,
       payload.firma_cliente || null,
       payload.recibido_por || null,
-      payload.fecha_recepcion || null
+      payload.fecha_recepcion || null,
+      JSON.stringify(payload.danos || {}),
+      payload.observaciones_danos || null
     ]
   );
 

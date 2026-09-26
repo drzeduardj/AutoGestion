@@ -71,7 +71,17 @@ app.use('/api/facturas', facturasRoutes);
 const frontendDist = path.resolve(__dirname, '../../frontend/dist');
 
 if (fs.existsSync(frontendDist)) {
-  app.use(express.static(frontendDist, { index: 'index.html', maxAge: '1h' }));
+  app.use(express.static(frontendDist, {
+    index: 'index.html',
+    maxAge: '1h',
+    // index.html no se cachea: asi tras actualizar la app el navegador pide los assets nuevos
+    // (sus nombres llevan hash, por eso esos si pueden cachearse).
+    setHeaders: (res, filePath) => {
+      if (path.basename(filePath) === 'index.html') {
+        res.setHeader('Cache-Control', 'no-cache');
+      }
+    }
+  }));
 
   // Cualquier ruta que no sea del API ni de uploads devuelve la SPA.
   app.get('*', (req, res, next) => {
