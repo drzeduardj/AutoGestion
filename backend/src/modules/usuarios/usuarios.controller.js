@@ -1,4 +1,4 @@
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const usuariosModel = require('./usuarios.model');
 const { successResponse, errorResponse } = require('../../utils/responses');
 
