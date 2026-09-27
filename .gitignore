@@ -17,3 +17,6 @@ backend/uploads/**/*.webp
 
 .vercel
 backend/.env.neon
+
+# Ejecutable generado con pkg (npm run build:exe)
+dist-exe/

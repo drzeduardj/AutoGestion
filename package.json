@@ -10,6 +10,7 @@
     "clean:inventario": "npm --prefix backend run clean:inventario",
     "start": "npm --prefix backend run start",
     "start:prod": "npm --prefix frontend run build && npm --prefix backend run start",
-    "setup": "npm run install:all && npm run build && npm run migrate"
+    "setup": "npm run install:all && npm run build && npm run migrate",
+    "build:exe": "npm run build && npm --prefix backend run build:exe"
   }
 }
