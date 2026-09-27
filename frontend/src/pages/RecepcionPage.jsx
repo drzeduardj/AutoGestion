@@ -34,7 +34,7 @@ const initialForm = () => ({
   firma_cliente: '',
   danos: {},
   observaciones_danos: '',
-  // Clave del diagrama de danos (turismo, camioneta, pickup); la decide el backend.
+  // Clave del diagrama de danos (turismo, camioneta, pickup, camion, buses); la decide el backend.
   tipo_diagrama: '',
   ...emptyChecklist()
 });

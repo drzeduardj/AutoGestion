@@ -4,11 +4,9 @@ import {
   Ban,
   Camera,
   Check,
-  ChevronLeft,
   ChevronRight,
   CircleCheck,
   CirclePause,
-  ClipboardList,
   Flag,
   Image,
   LoaderCircle,
@@ -17,8 +15,7 @@ import {
   Save,
   Search,
   Trash2,
-  TriangleAlert,
-  Wrench
+  TriangleAlert
 } from 'lucide-react';
 import { apiRequest, assetUrl, crudRequest } from '../api/client';
 import { estadosVisita } from '../constants/app';
@@ -48,22 +45,16 @@ const accionesPorEstado = {
   ],
   'En espera de repuesto': [{ estado: 'En proceso', label: 'Llegó el repuesto: reanudar', primary: true }],
   'En prueba': [
-    { step: 3, label: 'Ir a finalizar', primary: true },
+    { finalizar: true, label: 'Finalizar trabajo', primary: true },
     { estado: 'En proceso', label: 'Volver a reparación' }
   ]
 };
 
-const wizardSteps = [
-  { label: 'Diagnóstico', icon: ClipboardList },
-  { label: 'Reparación', icon: Wrench },
-  { label: 'Evidencias', icon: Camera },
-  { label: 'Finalizar', icon: Flag }
-];
-
-const stepInicial = (estado) => {
-  if (['En proceso', 'En espera de repuesto'].includes(estado)) return 1;
-  if (estado === 'En prueba') return 3;
-  return 0;
+// El contenido del detalle sigue al estado: el unico "wizard" es el recorrido de estados.
+const faseDeEstado = (estado) => {
+  if (['En proceso', 'En espera de repuesto'].includes(estado)) return 'reparacion';
+  if (estado === 'En prueba') return 'prueba';
+  return 'diagnostico';
 };
 
 const horaActual = () => new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
@@ -593,19 +584,19 @@ function TrabajoDetalle({
   itemError
 }) {
   const { visita, servicios = [], productos: productosUsados = [], items = [], fotos = [], bitacora = [], etapas = [], progreso } = detail;
-  const [step, setStep] = useState(() => stepInicial(visita.estado));
+  const fase = faseDeEstado(visita.estado);
 
   const notasPendientes = (noteForm.diagnostico || '') !== (visita.diagnostico || '')
     || (noteForm.observaciones || '') !== (visita.observaciones || '');
   const etapasCerradas = etapas.filter((etapa) => ['Completado', 'Omitido'].includes(etapa.estado)).length;
   const etapasPendientes = etapas.length - etapasCerradas;
 
-  const stepCompleto = [
-    Boolean(visita.diagnostico),
-    etapas.length > 0 && etapasPendientes === 0,
-    fotos.length > 0,
-    false
-  ];
+  const porcentajeEtapas = progreso
+    ? Number(progreso.porcentaje_avance || 0)
+    : (etapas.length ? (etapasCerradas / etapas.length) * 100 : 0);
+  const subAvance = etapas.length
+    ? { cerradas: etapasCerradas, total: etapas.length, porcentaje: Math.min(porcentajeEtapas, 100) }
+    : null;
 
   const avisos = [
     !visita.diagnostico && !noteForm.diagnostico ? 'No hay diagnóstico registrado.' : null,
@@ -620,6 +611,72 @@ function TrabajoDetalle({
       confirmMessage: avisos.length ? `${base} Atención: ${avisos.join(' ')}` : base
     });
   };
+
+  const datosDiagnostico = (
+    <>
+      <section className="mechanic-section">
+        <h3>Vehiculo</h3>
+        <div className="detail-grid">
+          <DetailItem label="Placa" value={visita.placa} />
+          <DetailItem label="Marca" value={visita.marca} />
+          <DetailItem label="Modelo" value={visita.modelo} />
+          <DetailItem label="Color" value={visita.color} />
+          <DetailItem label="Anio" value={visita.anio} />
+          <DetailItem label="Kilometraje" value={visita.kilometraje_ingreso} />
+        </div>
+      </section>
+
+      <section className="mechanic-section">
+        <h3>Trabajo solicitado</h3>
+        <div className="work-summary">
+          <p><strong>Motivo:</strong> {visita.motivo_visita || 'Sin dato'}</p>
+          <p><strong>Problema:</strong> {visita.descripcion_problema || 'Sin dato'}</p>
+          <p><strong>Ingreso:</strong> {formatDate(visita.fecha_ingreso)}</p>
+        </div>
+        <CompactList
+          rows={servicios}
+          empty="Sin servicios asignados"
+          render={(servicio) => (
+            <>
+              <strong>{servicio.servicio_nombre}</strong>
+              <span>{servicio.estado}</span>
+            </>
+          )}
+        />
+      </section>
+
+      <section className="mechanic-section">
+        <h3>Diagnostico y observaciones</h3>
+        <form className="mechanic-form" onSubmit={onSaveNotes}>
+          <label className="field">
+            Diagnostico
+            <textarea
+              value={noteForm.diagnostico}
+              onChange={(event) => onNoteChange((current) => ({ ...current, diagnostico: event.target.value }))}
+              rows={4}
+            />
+          </label>
+          <label className="field">
+            Observaciones
+            <textarea
+              value={noteForm.observaciones}
+              onChange={(event) => onNoteChange((current) => ({ ...current, observaciones: event.target.value }))}
+              rows={3}
+            />
+          </label>
+          <div className="save-row">
+            <button className="primary-button action-button" type="submit" disabled={savingAction === 'notes' || !notasPendientes}>
+              {savingAction === 'notes' ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : <Save size={18} aria-hidden="true" />}
+              Guardar diagnóstico
+            </button>
+            <span className={notasPendientes ? 'save-status save-status-pending' : 'save-status'}>
+              {notasPendientes ? 'Cambios sin guardar' : 'Todo guardado'}
+            </span>
+          </div>
+        </form>
+      </section>
+    </>
+  );
 
   return (
     <div className="work-detail-content">
@@ -638,120 +695,27 @@ function TrabajoDetalle({
         estado={visita.estado}
         feedback={feedback}
         savingAction={savingAction}
+        subAvance={subAvance}
         onEstado={onEstado}
-        onGoToStep={setStep}
+        onFinalizar={finalizar}
       />
 
-      <nav className="wizard-steps" aria-label="Pasos del trabajo">
-        {wizardSteps.map(({ label, icon: Icon }, index) => {
-          const className = [
-            'wizard-step',
-            index === step ? 'wizard-step-active' : '',
-            stepCompleto[index] ? 'wizard-step-done' : ''
-          ].filter(Boolean).join(' ');
+      {fase === 'diagnostico' ? datosDiagnostico : null}
 
-          return (
-            <button
-              className={className}
-              key={label}
-              type="button"
-              onClick={() => setStep(index)}
-              aria-current={index === step ? 'step' : undefined}
-            >
-              <span className="wizard-step-number">
-                {stepCompleto[index] ? <Check size={16} aria-hidden="true" /> : index + 1}
-              </span>
-              <span className="wizard-step-label">
-                <Icon size={16} aria-hidden="true" />
-                {label}
-              </span>
-            </button>
-          );
-        })}
-      </nav>
-
-      {step === 0 ? (
+      {fase === 'reparacion' ? (
         <>
           <section className="mechanic-section">
-            <h3>Vehiculo</h3>
-            <div className="detail-grid">
-              <DetailItem label="Placa" value={visita.placa} />
-              <DetailItem label="Marca" value={visita.marca} />
-              <DetailItem label="Modelo" value={visita.modelo} />
-              <DetailItem label="Color" value={visita.color} />
-              <DetailItem label="Anio" value={visita.anio} />
-              <DetailItem label="Kilometraje" value={visita.kilometraje_ingreso} />
-            </div>
-          </section>
-
-          <section className="mechanic-section">
-            <h3>Trabajo solicitado</h3>
-            <div className="work-summary">
-              <p><strong>Motivo:</strong> {visita.motivo_visita || 'Sin dato'}</p>
-              <p><strong>Problema:</strong> {visita.descripcion_problema || 'Sin dato'}</p>
-              <p><strong>Ingreso:</strong> {formatDate(visita.fecha_ingreso)}</p>
-            </div>
-            <CompactList
-              rows={servicios}
-              empty="Sin servicios asignados"
-              render={(servicio) => (
-                <>
-                  <strong>{servicio.servicio_nombre}</strong>
-                  <span>{servicio.estado}</span>
-                </>
-              )}
-            />
-          </section>
-
-          <section className="mechanic-section">
-            <h3>Diagnostico y observaciones</h3>
-            <form className="mechanic-form" onSubmit={onSaveNotes}>
-              <label className="field">
-                Diagnostico
-                <textarea
-                  value={noteForm.diagnostico}
-                  onChange={(event) => onNoteChange((current) => ({ ...current, diagnostico: event.target.value }))}
-                  rows={4}
-                />
-              </label>
-              <label className="field">
-                Observaciones
-                <textarea
-                  value={noteForm.observaciones}
-                  onChange={(event) => onNoteChange((current) => ({ ...current, observaciones: event.target.value }))}
-                  rows={3}
-                />
-              </label>
-              <div className="save-row">
-                <button className="primary-button action-button" type="submit" disabled={savingAction === 'notes' || !notasPendientes}>
-                  {savingAction === 'notes' ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : <Save size={18} aria-hidden="true" />}
-                  Guardar diagnóstico
-                </button>
-                <span className={notasPendientes ? 'save-status save-status-pending' : 'save-status'}>
-                  {notasPendientes ? 'Cambios sin guardar' : 'Todo guardado'}
-                </span>
-              </div>
-            </form>
-          </section>
-        </>
-      ) : null}
-
-      {step === 1 ? (
-        <>
-          <section className="mechanic-section">
-            <h3>Linea de trabajo</h3>
-            {progreso ? (
-              <div className={progreso.alerta_sin_avance ? 'stage-progress stage-progress-warning' : 'stage-progress'}>
-                <div className="progress-card-head">
-                  <div>
-                    <strong>{progreso.flujo_trabajo || visita.flujo_trabajo_nombre || 'Flujo de trabajo'}</strong>
-                    <span>{progreso.etapa_actual || 'Sin etapa activa'}</span>
-                  </div>
-                  <b>{Number(progreso.porcentaje_avance || 0).toFixed(0)}%</b>
-                </div>
-                <div className="progress-track">
-                  <span style={{ width: `${Math.min(Number(progreso.porcentaje_avance || 0), 100)}%` }} />
-                </div>
+            <h3>Etapas de la reparación</h3>
+            {subAvance ? (
+              <p className="mechanic-hint">
+                {subAvance.cerradas} de {subAvance.total} etapas cerradas
+                {progreso?.etapa_actual ? ` · Etapa actual: ${progreso.etapa_actual}` : ''}
+              </p>
+            ) : null}
+            {progreso?.alerta_sin_avance ? (
+              <div className="finish-warning">
+                <TriangleAlert size={18} aria-hidden="true" />
+                <div><strong>Sin avance reciente en la etapa actual</strong></div>
               </div>
             ) : null}
             <div className="stage-list">
@@ -929,116 +893,98 @@ function TrabajoDetalle({
         </>
       ) : null}
 
-      {step === 2 ? (
+      {fase === 'prueba' ? (
         <section className="mechanic-section">
-          <h3>Fotos</h3>
-          <form className="mechanic-form photo-form" onSubmit={onUploadPhoto} noValidate>
-            <label className="field">
-              Tipo
-              <select value={photoForm.tipo} onChange={(event) => onPhotoChange((current) => ({ ...current, tipo: event.target.value }))}>
-                {tiposFoto.map((tipo) => (
-                  <option key={tipo} value={tipo}>{tipo}</option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              Descripcion
-              <input
-                value={photoForm.descripcion}
-                onChange={(event) => onPhotoChange((current) => ({ ...current, descripcion: event.target.value }))}
-              />
-            </label>
-            <label className="file-picker">
-              <Camera size={20} aria-hidden="true" />
-              <span>{photoForm.foto?.name || 'Seleccionar foto'}</span>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={(event) => onPhotoChange((current) => ({ ...current, foto: event.target.files?.[0] || null }))}
-                required
-              />
-            </label>
-            <button className="primary-button action-button" type="submit" disabled={savingAction === 'photo'}>
-              {savingAction === 'photo' ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : <Image size={18} aria-hidden="true" />}
-              Subir foto
-            </button>
-            {photoError ? <div className="form-error full-row">{photoError}</div> : null}
-          </form>
-          <PhotoGrid fotos={fotos} />
+          <h3>Revisión final</h3>
+          <div className="finish-checklist">
+            <FinishCheck ok={Boolean(visita.diagnostico)} label="Diagnóstico" detail={visita.diagnostico ? 'Registrado' : 'Sin registrar'} />
+            <FinishCheck
+              ok={etapas.length > 0 && etapasPendientes === 0}
+              label="Etapas"
+              detail={etapas.length ? `${etapasCerradas} de ${etapas.length} cerradas` : 'Sin etapas'}
+            />
+            <FinishCheck ok label="Productos usados" detail={`${productosUsados.length} registrado(s)`} />
+            <FinishCheck ok label="Items adicionales" detail={`${items.length} registrado(s)`} />
+            <FinishCheck ok={fotos.length > 0} label="Fotos" detail={`${fotos.length} cargada(s)`} />
+          </div>
+          {avisos.length ? (
+            <div className="finish-warning">
+              <TriangleAlert size={18} aria-hidden="true" />
+              <div>
+                <strong>Revisa antes de finalizar</strong>
+                {avisos.map((aviso) => <span key={aviso}>{aviso}</span>)}
+              </div>
+            </div>
+          ) : null}
+          <p className="mechanic-hint">Si todo está en orden, usa «Finalizar trabajo» arriba: se notifica a recepción y el vehículo sale de tu lista de trabajos.</p>
         </section>
       ) : null}
 
-      {step === 3 ? (
-        <>
-          <section className="mechanic-section">
-            <h3>Revisión final</h3>
-            <div className="finish-checklist">
-              <FinishCheck ok={Boolean(visita.diagnostico)} label="Diagnóstico" detail={visita.diagnostico ? 'Registrado' : 'Sin registrar'} />
-              <FinishCheck
-                ok={etapas.length > 0 && etapasPendientes === 0}
-                label="Etapas"
-                detail={etapas.length ? `${etapasCerradas} de ${etapas.length} cerradas` : 'Sin etapas'}
-              />
-              <FinishCheck ok label="Productos usados" detail={`${productosUsados.length} registrado(s)`} />
-              <FinishCheck ok label="Items adicionales" detail={`${items.length} registrado(s)`} />
-              <FinishCheck ok={fotos.length > 0} label="Fotos" detail={`${fotos.length} cargada(s)`} />
-            </div>
-            {avisos.length ? (
-              <div className="finish-warning">
-                <TriangleAlert size={18} aria-hidden="true" />
-                <div>
-                  <strong>Revisa antes de finalizar</strong>
-                  {avisos.map((aviso) => <span key={aviso}>{aviso}</span>)}
-                </div>
-              </div>
-            ) : null}
-            <button
-              className="primary-button action-button finish-button"
-              type="button"
-              onClick={finalizar}
-              disabled={Boolean(savingAction)}
-            >
-              {savingAction === 'estado:Finalizado' ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : <Flag size={18} aria-hidden="true" />}
-              Finalizar trabajo
-            </button>
-            <p className="mechanic-hint">Al finalizar se notifica a recepción y el vehículo sale de tu lista de trabajos.</p>
-          </section>
-
-          <section className="mechanic-section">
-            <h3>Bitacora</h3>
-            <CompactList
-              rows={bitacora}
-              empty="Sin historial"
-              render={(item) => (
-                <>
-                  <strong>{item.estado_nuevo || item.estado || 'Cambio registrado'}</strong>
-                  <span>{item.observaciones || item.descripcion || formatDate(item.fecha_creacion)}</span>
-                </>
-              )}
+      <section className="mechanic-section">
+        <h3>Fotos</h3>
+        <form className="mechanic-form photo-form" onSubmit={onUploadPhoto} noValidate>
+          <label className="field">
+            Tipo
+            <select value={photoForm.tipo} onChange={(event) => onPhotoChange((current) => ({ ...current, tipo: event.target.value }))}>
+              {tiposFoto.map((tipo) => (
+                <option key={tipo} value={tipo}>{tipo}</option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            Descripcion
+            <input
+              value={photoForm.descripcion}
+              onChange={(event) => onPhotoChange((current) => ({ ...current, descripcion: event.target.value }))}
             />
-          </section>
-        </>
+          </label>
+          <label className="file-picker">
+            <Camera size={20} aria-hidden="true" />
+            <span>{photoForm.foto?.name || 'Seleccionar foto'}</span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(event) => onPhotoChange((current) => ({ ...current, foto: event.target.files?.[0] || null }))}
+              required
+            />
+          </label>
+          <button className="primary-button action-button" type="submit" disabled={savingAction === 'photo'}>
+            {savingAction === 'photo' ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : <Image size={18} aria-hidden="true" />}
+            Subir foto
+          </button>
+          {photoError ? <div className="form-error full-row">{photoError}</div> : null}
+        </form>
+        <PhotoGrid fotos={fotos} />
+      </section>
+
+      {fase !== 'diagnostico' ? (
+        <details className="mechanic-collapsible">
+          <summary>Diagnóstico y datos del vehículo</summary>
+          {datosDiagnostico}
+        </details>
       ) : null}
 
-      <div className="wizard-nav">
-        <button className="secondary-button" type="button" onClick={() => setStep((current) => current - 1)} disabled={step === 0}>
-          <ChevronLeft size={18} aria-hidden="true" />
-          Anterior
-        </button>
-        {step < wizardSteps.length - 1 ? (
-          <button className="secondary-button" type="button" onClick={() => setStep((current) => current + 1)}>
-            Siguiente: {wizardSteps[step + 1].label}
-            <ChevronRight size={18} aria-hidden="true" />
-          </button>
-        ) : null}
-      </div>
+      <details className="mechanic-collapsible">
+        <summary>Bitácora ({bitacora.length})</summary>
+        <CompactList
+          rows={bitacora}
+          empty="Sin historial"
+          render={(item) => (
+            <>
+              <strong>{item.estado_nuevo || item.estado || 'Cambio registrado'}</strong>
+              <span>{item.observaciones || item.descripcion || formatDate(item.fecha_creacion)}</span>
+            </>
+          )}
+        />
+      </details>
     </div>
   );
 }
 
-function EstadoFlow({ estado, feedback, savingAction, onEstado, onGoToStep }) {
+function EstadoFlow({ estado, feedback, savingAction, subAvance, onEstado, onFinalizar }) {
   const enPausa = estado === 'En espera de repuesto';
   const actualIndex = flujoEstados.indexOf(enPausa ? 'En proceso' : estado);
+  const procesoIndex = flujoEstados.indexOf('En proceso');
   const acciones = accionesPorEstado[estado] || [];
   const guardandoEstado = savingAction.startsWith('estado:');
   const otrosEstados = estadosActivos.filter((opcion) => opcion !== estado);
@@ -1063,6 +1009,14 @@ function EstadoFlow({ estado, feedback, savingAction, onEstado, onGoToStep }) {
                 {current && enPausa ? <CirclePause size={14} aria-hidden="true" /> : null}
               </span>
               <span className="estado-track-label">{current && enPausa ? 'Esperando repuesto' : paso}</span>
+              {index === procesoIndex && subAvance && actualIndex >= procesoIndex ? (
+                <span className="estado-track-sub" title={`${subAvance.cerradas} de ${subAvance.total} etapas cerradas`}>
+                  <span className="estado-track-sub-bar">
+                    <span style={{ width: `${subAvance.porcentaje}%` }} />
+                  </span>
+                  <small>{subAvance.cerradas}/{subAvance.total} etapas</small>
+                </span>
+              ) : null}
             </li>
           );
         })}
@@ -1080,11 +1034,12 @@ function EstadoFlow({ estado, feedback, savingAction, onEstado, onGoToStep }) {
               key={accion.label}
               type="button"
               disabled={guardandoEstado}
-              onClick={() => (accion.step !== undefined ? onGoToStep(accion.step) : onEstado(accion.estado))}
+              onClick={() => (accion.finalizar ? onFinalizar() : onEstado(accion.estado))}
             >
-              {accion.estado && savingAction === `estado:${accion.estado}` ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : null}
+              {savingAction === `estado:${accion.finalizar ? 'Finalizado' : accion.estado}` ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : null}
+              {accion.finalizar && savingAction !== 'estado:Finalizado' ? <Flag size={18} aria-hidden="true" /> : null}
               {accion.label}
-              {accion.primary ? <ChevronRight size={18} aria-hidden="true" /> : null}
+              {accion.primary && !accion.finalizar ? <ChevronRight size={18} aria-hidden="true" /> : null}
             </button>
           ))}
           <select

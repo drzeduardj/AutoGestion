@@ -18,7 +18,8 @@ INSERT INTO tipos_vehiculo (clave, nombre, orden)
 VALUES
   ('turismo', 'Turismo', 1),
   ('camioneta', 'Camioneta', 2),
-  ('pickup', 'Pickup', 3)
+  ('pickup', 'Pickup', 3),
+  ('camion', 'Camión', 4)
 ON CONFLICT (clave) DO NOTHING;
 
 ALTER TABLE vehiculos
@@ -27,7 +28,8 @@ ALTER TABLE vehiculos
 CREATE INDEX IF NOT EXISTS idx_vehiculos_tipo_vehiculo_id ON vehiculos(tipo_vehiculo_id);
 
 -- Pasa el texto libre anterior al catalogo y elimina la columna (solo la primera vez).
--- Camioneta/SUV -> Camioneta, "pick..." -> Pickup, cualquier otro valor -> Turismo.
+-- "pick..."/"troca" -> Pickup, Camioneta/SUV -> Camioneta, Camion -> Camion,
+-- cualquier otro valor -> Turismo.
 DO $$
 BEGIN
   IF EXISTS (
@@ -40,8 +42,9 @@ BEGIN
     WHERE v.tipo_vehiculo_id IS NULL
       AND NULLIF(TRIM(v.tipo_vehiculo), '') IS NOT NULL
       AND tv.clave = CASE
-        WHEN v.tipo_vehiculo ILIKE '%pick%' THEN 'pickup'
+        WHEN v.tipo_vehiculo ILIKE '%pick%' OR v.tipo_vehiculo ILIKE '%troca%' THEN 'pickup'
         WHEN v.tipo_vehiculo ILIKE '%camioneta%' OR v.tipo_vehiculo ILIKE '%suv%' THEN 'camioneta'
+        WHEN v.tipo_vehiculo ILIKE '%cami_n%' THEN 'camion'
         ELSE 'turismo'
       END;
 

@@ -1,6 +1,10 @@
 import diagramaTurismo from '../assets/diagrama-vehiculo.png';
 import diagramaCamioneta from '../assets/diagrama-camioneta.png';
 import diagramaPickup from '../assets/diagrama-pickup.png';
+import diagramaCamion from '../assets/diagrama-camion.png';
+import diagramaBusLiviano from '../assets/diagrama-bus-liviano.png';
+import diagramaBusMediano from '../assets/diagrama-bus-mediano.png';
+import diagramaAutobus from '../assets/diagrama-autobus.png';
 
 // Checklist de inventario de recepcion: mismos rubros que la orden de servicio impresa del taller.
 // Cada item marcado significa "el vehiculo lo trae / existe" al ingresar.
@@ -237,7 +241,170 @@ const pickup = {
   })
 };
 
-export const diagramas = { turismo, camioneta, pickup };
+// Camion (Hino, Isuzu NPR, etc.): assets/diagrama-camion.png (530 x 750 px). Es cabina sobre
+// chasis: el parabrisas va en la vista frontal, arriba se ven el techo de la cabina y el chasis,
+// y cada costado tiene una sola puerta y el larguero del chasis.
+const camion = {
+  clave: 'camion',
+  nombre: 'Camión',
+  imagen: diagramaCamion,
+  ancho: 530,
+  alto: 750,
+  ejes: [
+    { texto: 'FRENTE', x: 360, y: 110, anchor: 'start' },
+    { texto: 'ATRÁS', x: 370, y: 660, anchor: 'start' },
+    { texto: 'IZQUIERDO', x: 20, y: 742, anchor: 'start' },
+    { texto: 'DERECHO', x: 510, y: 742, anchor: 'end' }
+  ],
+  zonas: zonasDiagrama({
+    eje: 530,
+    centro: [
+      { key: 'parabrisas', label: 'Parabrisas', points: [[198, 12], [332, 12], [334, 68], [196, 68]], lx: 265, ly: 45 },
+      { key: 'defensa_delantera', label: 'Defensa delantera / parrilla', points: [[188, 68], [342, 68], [342, 135], [188, 135]], lx: 265, ly: 112 },
+      { key: 'techo', label: 'Techo de cabina', points: [[195, 185], [333, 185], [333, 312], [195, 312]], lx: 265, ly: 255 },
+      { key: 'chasis', label: 'Chasis', points: [[228, 312], [302, 312], [302, 560], [228, 560]], lx: 265, ly: 440 },
+      { key: 'medallon', label: 'Parte trasera de cabina', points: [[195, 580], [333, 580], [333, 648], [195, 648]], lx: 265, ly: 620 },
+      { key: 'defensa_trasera', label: 'Travesaño / luces traseras', points: [[180, 650], [350, 650], [350, 690], [180, 690]], lx: 265, ly: 675 }
+    ],
+    costado: conLabels([
+      { key: 'puerta_del', points: [[30, 175], [88, 180], [80, 220], [68, 250], [30, 250]], lx: 55, ly: 225 },
+      { key: 'salpicadera_del', points: [[88, 180], [120, 162], [142, 165], [142, 272], [20, 272], [20, 250], [68, 250], [80, 220]], lx: 112, ly: 198 },
+      { key: 'larguero', points: [[105, 272], [150, 272], [150, 595], [105, 595]], lx: 128, ly: 400 }
+    ], { puerta_del: 'Puerta', salpicadera_del: 'Costado de cabina', larguero: 'Chasis / larguero' }),
+    ruedas: conLabels([
+      { key: 'rin_del', cx: 135, cy: 245, r: 30 },
+      { key: 'rin_tras', cx: 132, cy: 512, r: 32 }
+    ], ruedasLabels)
+  })
+};
+
+// Buses: los costados son largos y sin puertas fijas (la de pasajeros va de un solo lado), asi
+// que se dividen en tramo delantero, central y trasero.
+const busCostadoLabels = {
+  costado_del: 'Costado delantero',
+  costado_centro: 'Costado central',
+  costado_tras: 'Costado trasero'
+};
+
+// Bus liviano (tipo Hiace): assets/diagrama-bus-liviano.png (616 x 750 px). En la vista superior
+// el frente queda abajo.
+const busLiviano = {
+  clave: 'bus_liviano',
+  nombre: 'Bus liviano',
+  imagen: diagramaBusLiviano,
+  ancho: 616,
+  alto: 750,
+  ejes: [
+    { texto: 'FRENTE', x: 420, y: 150, anchor: 'start' },
+    { texto: 'ATRÁS', x: 420, y: 690, anchor: 'start' },
+    { texto: 'IZQUIERDO', x: 20, y: 742, anchor: 'start' },
+    { texto: 'DERECHO', x: 596, y: 742, anchor: 'end' }
+  ],
+  zonas: zonasDiagrama({
+    eje: 614,
+    centro: [
+      { key: 'parabrisas', label: 'Parabrisas', points: [[228, 30], [388, 30], [390, 78], [226, 78]], lx: 307, ly: 58 },
+      { key: 'defensa_delantera', label: 'Defensa delantera / parrilla', points: [[213, 80], [400, 80], [400, 165], [213, 165]], lx: 307, ly: 140 },
+      { key: 'techo', label: 'Techo', points: [[225, 212], [390, 212], [390, 500], [225, 500]], lx: 307, ly: 355 },
+      { key: 'cofre', label: 'Cofre / frente superior', points: [[225, 500], [390, 500], [385, 590], [230, 590]], lx: 307, ly: 575 },
+      { key: 'medallon', label: 'Medallón (vidrio trasero)', points: [[235, 605], [378, 605], [378, 645], [235, 645]], lx: 307, ly: 630 },
+      { key: 'cajuela', label: 'Compuerta trasera', points: [[225, 645], [390, 645], [390, 698], [225, 698]], lx: 307, ly: 685 },
+      { key: 'defensa_trasera', label: 'Defensa trasera', points: [[225, 698], [390, 698], [390, 722], [225, 722]], lx: 307, ly: 716 }
+    ],
+    costado: conLabels([
+      { key: 'costado_del', points: [[30, 260], [60, 215], [100, 195], [175, 188], [175, 335], [30, 335]], lx: 90, ly: 300 },
+      { key: 'costado_centro', points: [[30, 335], [175, 335], [175, 455], [30, 455]], lx: 100, ly: 395 },
+      { key: 'costado_tras', points: [[30, 455], [175, 455], [175, 585], [95, 583], [30, 560]], lx: 100, ly: 540 }
+    ], busCostadoLabels),
+    ruedas: conLabels([
+      { key: 'rin_del', cx: 170, cy: 270, r: 30 },
+      { key: 'rin_tras', cx: 170, cy: 500, r: 30 }
+    ], ruedasLabels)
+  })
+};
+
+// Bus mediano (tipo Coaster): assets/diagrama-bus-mediano.png (531 x 750 px). En la vista superior
+// el frente queda abajo.
+const busMediano = {
+  clave: 'bus_mediano',
+  nombre: 'Bus mediano',
+  imagen: diagramaBusMediano,
+  ancho: 531,
+  alto: 750,
+  ejes: [
+    { texto: 'FRENTE', x: 365, y: 140, anchor: 'start' },
+    { texto: 'ATRÁS', x: 355, y: 690, anchor: 'start' },
+    { texto: 'IZQUIERDO', x: 20, y: 742, anchor: 'start' },
+    { texto: 'DERECHO', x: 511, y: 742, anchor: 'end' }
+  ],
+  zonas: zonasDiagrama({
+    eje: 529,
+    centro: [
+      { key: 'parabrisas', label: 'Parabrisas', points: [[197, 25], [338, 25], [340, 80], [195, 80]], lx: 267, ly: 55 },
+      { key: 'defensa_delantera', label: 'Defensa delantera / parrilla', points: [[188, 80], [348, 80], [348, 150], [188, 150]], lx: 267, ly: 128 },
+      { key: 'techo', label: 'Techo', points: [[195, 200], [335, 200], [335, 520], [195, 520]], lx: 265, ly: 380 },
+      { key: 'cofre', label: 'Cofre / frente superior', points: [[195, 520], [335, 520], [330, 590], [200, 590]], lx: 265, ly: 575 },
+      { key: 'medallon', label: 'Medallón (vidrio trasero)', points: [[200, 610], [332, 610], [332, 650], [200, 650]], lx: 266, ly: 635 },
+      { key: 'cajuela', label: 'Panel trasero', points: [[192, 650], [340, 650], [340, 703], [192, 703]], lx: 266, ly: 690 },
+      { key: 'defensa_trasera', label: 'Defensa trasera', points: [[192, 703], [340, 703], [340, 722], [192, 722]], lx: 266, ly: 717 }
+    ],
+    costado: conLabels([
+      { key: 'costado_del', points: [[22, 225], [40, 190], [100, 178], [150, 178], [150, 320], [22, 320]], lx: 80, ly: 290 },
+      { key: 'costado_centro', points: [[22, 320], [150, 320], [150, 450], [22, 450]], lx: 85, ly: 390 },
+      { key: 'costado_tras', points: [[22, 450], [150, 450], [150, 590], [100, 588], [40, 565], [22, 540]], lx: 85, ly: 520 }
+    ], busCostadoLabels),
+    ruedas: conLabels([
+      { key: 'rin_del', cx: 147, cy: 272, r: 29 },
+      { key: 'rin_tras', cx: 147, cy: 527, r: 29 }
+    ], ruedasLabels)
+  })
+};
+
+// Autobus (tamano completo): assets/diagrama-autobus.png (531 x 750 px). La vista superior es
+// toda techo.
+const autobus = {
+  clave: 'autobus',
+  nombre: 'Autobús',
+  imagen: diagramaAutobus,
+  ancho: 531,
+  alto: 750,
+  ejes: [
+    { texto: 'FRENTE', x: 355, y: 120, anchor: 'start' },
+    { texto: 'ATRÁS', x: 355, y: 690, anchor: 'start' },
+    { texto: 'IZQUIERDO', x: 20, y: 742, anchor: 'start' },
+    { texto: 'DERECHO', x: 511, y: 742, anchor: 'end' }
+  ],
+  zonas: zonasDiagrama({
+    eje: 529,
+    centro: [
+      { key: 'parabrisas', label: 'Parabrisas', points: [[200, 38], [330, 38], [330, 88], [200, 88]], lx: 265, ly: 65 },
+      { key: 'defensa_delantera', label: 'Defensa delantera / parrilla', points: [[195, 88], [335, 88], [335, 142], [195, 142]], lx: 265, ly: 125 },
+      { key: 'techo', label: 'Techo', points: [[197, 188], [333, 188], [333, 578], [197, 578]], lx: 265, ly: 380 },
+      { key: 'medallon', label: 'Medallón (vidrio trasero)', points: [[222, 612], [308, 612], [308, 650], [222, 650]], lx: 265, ly: 636 },
+      { key: 'cajuela', label: 'Panel trasero / motor', points: [[195, 652], [335, 652], [335, 690], [195, 690]], lx: 265, ly: 680 },
+      { key: 'defensa_trasera', label: 'Defensa trasera', points: [[195, 690], [335, 690], [335, 710], [195, 710]], lx: 265, ly: 705 }
+    ],
+    costado: conLabels([
+      { key: 'costado_del', points: [[28, 180], [60, 172], [148, 170], [148, 300], [28, 300]], lx: 75, ly: 245 },
+      { key: 'costado_centro', points: [[28, 300], [148, 300], [148, 470], [28, 470]], lx: 80, ly: 390 },
+      { key: 'costado_tras', points: [[28, 470], [148, 470], [148, 625], [60, 620], [35, 600], [28, 580]], lx: 80, ly: 560 }
+    ], busCostadoLabels),
+    ruedas: conLabels([
+      { key: 'rin_del', cx: 142, cy: 250, r: 27 },
+      { key: 'rin_tras', cx: 142, cy: 528, r: 28 }
+    ], ruedasLabels)
+  })
+};
+
+export const diagramas = {
+  turismo,
+  camioneta,
+  pickup,
+  camion,
+  bus_liviano: busLiviano,
+  bus_mediano: busMediano,
+  autobus
+};
 
 // Ancho de referencia de los textos del diagrama: en imagenes mas anchas se escalan para verse igual.
 export const DIAGRAMA_ANCHO_BASE = turismo.ancho;

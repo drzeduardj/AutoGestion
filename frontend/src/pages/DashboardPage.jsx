@@ -2,6 +2,12 @@ import { useMemo, useState } from 'react';
 import { AlertTriangle, Boxes, Camera, Car, CircleCheck, Filter, Receipt, Search, Settings } from 'lucide-react';
 import { crudRequest } from '../api/client';
 import carImage from '../assets/car.png';
+import carCamionetaImage from '../assets/car-camioneta.png';
+import carPickupImage from '../assets/car-pickup.png';
+import carCamionImage from '../assets/car-camion.png';
+import carBusLivianoImage from '../assets/car-bus-liviano.png';
+import carBusMedianoImage from '../assets/car-bus-mediano.png';
+import carAutobusImage from '../assets/car-autobus.png';
 import DataTable from '../components/ui/DataTable';
 import EmptyState from '../components/ui/EmptyState';
 import ErrorState from '../components/ui/ErrorState';
@@ -11,6 +17,17 @@ import ConfirmModal from '../components/forms/ConfirmModal';
 import { formatDate, stripAccents, vehicleLabel } from '../utils/formatters';
 
 const normalizeText = (value) => stripAccents(value).toLowerCase();
+
+// Silueta del marcador de avance segun el tipo del vehiculo (turismo si no tiene tipo).
+const carImages = {
+  camioneta: carCamionetaImage,
+  pickup: carPickupImage,
+  camion: carCamionImage,
+  bus_liviano: carBusLivianoImage,
+  bus_mediano: carBusMedianoImage,
+  autobus: carAutobusImage
+};
+const carImageFor = (clave) => carImages[clave] || carImage;
 
 const stageClass = (estado) => `timeline-step timeline-step-${normalizeText(estado).replace(/\s+/g, '-')}`;
 
@@ -243,7 +260,7 @@ function TimelineCard({ visita, onOpenGallery, onOpenCobro, onEntregar }) {
         <div className="progress-track timeline-track" aria-label={`Avance ${percent}%`}>
           <span style={{ width: `${percent}%` }} />
         </div>
-        <img className="timeline-car-marker" src={carImage} alt="" aria-hidden="true" />
+        <img className="timeline-car-marker" src={carImageFor(visita.tipo_vehiculo_clave)} alt="" aria-hidden="true" />
         <span className="timeline-finish" aria-hidden="true" />
       </div>
 

@@ -135,7 +135,7 @@ const upsertByVisitaId = async (visitaId, payload) => {
   return findByVisitaId(visitaId || result.rows[0]?.id);
 };
 
-// Clave del tipo del vehiculo de la visita (turismo, camioneta, pickup) o null si no tiene.
+// Clave del tipo del vehiculo de la visita (turismo, camioneta, pickup, camion, buses) o null si no tiene.
 const claveTipoVehiculoDeVisita = async (visitaId) => {
   const result = await query(
     `

@@ -2,7 +2,7 @@ import { DIAGRAMA_ANCHO_BASE, getDiagrama } from '../../constants/recepcion';
 
 // Diagrama de carroceria: la imagen del vehiculo va de fondo y encima cada zona es un poligono
 // (o circulo, en las ruedas) transparente que se colorea cuando tiene dano. `tipo` es la clave
-// del tipo de vehiculo (turismo, camioneta, pickup). Sin onSelect se dibuja solo lectura
+// del tipo de vehiculo (turismo, camioneta, pickup, camion, buses). Sin onSelect se dibuja solo lectura
 // (documento impreso).
 function DanosDiagram({ tipo, danos = {}, selected, onSelect }) {
   const interactive = Boolean(onSelect);

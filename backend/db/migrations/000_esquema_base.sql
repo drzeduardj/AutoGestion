@@ -103,21 +103,15 @@ CREATE TABLE IF NOT EXISTS usuarios (
     fecha_actualizacion TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Usuarios iniciales: admin y mecanico1, ambos con contrasena 123456 (hash bcrypt).
--- Recomendado cambiar las contrasenas desde el sistema despues del primer login.
+-- Usuario inicial: admin con contrasena 123456 (hash bcrypt).
+-- Recomendado cambiar la contrasena desde el sistema despues del primer login.
+-- Los mecanicos y demas usuarios se crean desde Admin -> Usuarios.
 
 INSERT INTO usuarios (rol_id, nombre, apellido, username, email, password_hash)
 SELECT r.id, 'Administrador', 'General', 'admin', 'admin@taller.local',
        '$2b$10$BdROPVqPKszBttbv6Uml8O3o4LMFja/91pCwzwMQ0/HEv4GPZmaP.'
 FROM roles r
 WHERE r.nombre = 'Admin'
-ON CONFLICT (username) DO NOTHING;
-
-INSERT INTO usuarios (rol_id, nombre, apellido, username, email, password_hash)
-SELECT r.id, 'Smoke', 'Mecanico', 'mecanico1', 'mecanico_panel_1780769586359@local.test',
-       '$2b$10$NZcdlM4LwI9OfdUmbGeeMukQWka9ayXeJRtupXeaxFM3e9cscODYS'
-FROM roles r
-WHERE r.nombre = 'Mecanico'
 ON CONFLICT (username) DO NOTHING;
 
 -- ============================================================

@@ -2882,7 +2882,7 @@ td {
   display: none;
 }
 
-/* Panel mecanico: recorrido de estados + wizard por pasos */
+/* Panel mecanico: recorrido de estados y contenido segun la fase */
 .estado-flow {
   display: grid;
   gap: 14px;
@@ -3049,81 +3049,52 @@ td {
   font-weight: 400;
 }
 
-.wizard-steps {
+.estado-track-sub {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  justify-items: center;
+  gap: 3px;
+  width: min(100%, 84px);
 }
 
-.wizard-step {
-  min-height: 52px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border: 1px solid #dce3ea;
-  border-radius: 8px;
-  color: #506070;
-  background: #ffffff;
-  text-align: left;
-}
-
-.wizard-step:hover {
-  border-color: #9cc4d7;
-}
-
-.wizard-step-number {
-  flex: none;
-  width: 28px;
-  height: 28px;
-  display: inline-grid;
-  place-items: center;
+.estado-track-sub-bar {
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
   border-radius: 999px;
-  color: #506070;
-  background: #edf1f5;
-  font-weight: 700;
-  font-size: 14px;
+  background: #dce3ea;
 }
 
-.wizard-step-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 700;
-}
-
-.wizard-step-done .wizard-step-number {
-  color: #ffffff;
+.estado-track-sub-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
   background: #2f8a57;
 }
 
-.wizard-step-active {
-  border-color: #265c7b;
-  color: #265c7b;
-  box-shadow: inset 0 -3px 0 #265c7b;
+.estado-track-sub small {
+  color: #657484;
+  font-size: 11px;
 }
 
-.wizard-step-active .wizard-step-number {
-  color: #ffffff;
-  background: #265c7b;
+.mechanic-collapsible {
+  border: 1px solid #dce3ea;
+  border-radius: 8px;
+  background: #ffffff;
 }
 
-.wizard-nav {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  padding-top: 12px;
-  border-top: 1px solid #edf1f5;
+.mechanic-collapsible > summary {
+  padding: 12px 14px;
+  color: #263745;
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.wizard-nav .secondary-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.mechanic-collapsible[open] > summary {
+  border-bottom: 1px solid #edf1f5;
 }
 
-.wizard-nav .secondary-button:last-child {
-  margin-left: auto;
+.mechanic-collapsible > :not(summary) {
+  margin: 12px 14px;
 }
 
 .save-row {
@@ -3349,27 +3320,6 @@ td {
   .estado-flow-actions .primary-button,
   .estado-flow-actions .secondary-button {
     justify-content: center;
-  }
-
-  .wizard-steps {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 6px;
-  }
-
-  .wizard-step {
-    flex-direction: column;
-    justify-content: center;
-    gap: 4px;
-    padding: 8px 4px;
-    text-align: center;
-  }
-
-  .wizard-step-label svg {
-    display: none;
-  }
-
-  .wizard-step-label {
-    font-size: 12px;
   }
 
   .main-area {

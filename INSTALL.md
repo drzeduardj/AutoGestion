@@ -58,14 +58,14 @@ Elige **una** de las dos opciones:
 2. Nada más: las tablas se crean en el paso 6 (`npm run setup` ejecuta las migraciones).
 
 Las migraciones (`backend/db/migrations/000` a la última) crean el esquema completo, los roles,
-los servicios y flujos de trabajo base, y dos usuarios iniciales:
+los servicios y flujos de trabajo base, y el usuario inicial:
 
 | Usuario | Rol | Contraseña |
 |---|---|---|
 | `admin` | Admin | `123456` |
-| `mecanico1` | Mecanico | `123456` |
 
-> ⚠️ **Cambia ambas contraseñas** desde **Admin → Usuarios** tras el primer inicio de sesión.
+> ⚠️ **Cambia la contraseña** desde **Admin → Usuarios** tras el primer inicio de sesión.
+> Los mecánicos y cajeros se crean desde esa misma pantalla.
 
 ### Opción B — Trasladar datos con un dump de pgAdmin
 

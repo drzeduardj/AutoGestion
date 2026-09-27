@@ -121,6 +121,13 @@ const getProgresoVisitas = async (limit = 20) => {
           ORDER BY f.id DESC
           LIMIT 1
         ) AS factura_numero,
+        (
+          SELECT tv.clave
+          FROM visitas vi
+          INNER JOIN vehiculos veh ON veh.id = vi.vehiculo_id
+          LEFT JOIN tipos_vehiculo tv ON tv.id = veh.tipo_vehiculo_id
+          WHERE vi.id = b.visita_id
+        ) AS tipo_vehiculo_clave,
         COALESCE(
           (
             SELECT json_agg(
